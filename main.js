@@ -89,11 +89,16 @@ class PlaygroundApp {
         document.addEventListener('keydown', this.onKeyDown.bind(this));
 
         // Info panel controls
-        const infoCircle = document.getElementById('info-circle');
+        const infoPanel = document.getElementById('info-panel');
         const closeBtn = document.getElementById('close-info');
 
-        if (infoCircle) infoCircle.addEventListener('click', this.toggleInfoPanel.bind(this));
-        if (closeBtn) closeBtn.addEventListener('click', this.closeInfoPanel.bind(this));
+        if (infoPanel) infoPanel.addEventListener('click', this.onInfoPanelClick.bind(this));
+        if (closeBtn) {
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent triggering panel click
+                this.closeInfoPanel();
+            });
+        }
     }
 
     /**
@@ -546,15 +551,34 @@ class PlaygroundApp {
     }
 
     /**
+     * Handle click on info panel (works for both collapsed circle and expanded card)
+     */
+    onInfoPanelClick(event) {
+        const infoPanel = document.getElementById('info-panel');
+
+        // If panel is collapsed (circle), expand it if we have info
+        if (infoPanel && !infoPanel.classList.contains('expanded')) {
+            if (this.currentInfoObject) {
+                this.expandInfoPanel();
+            }
+        }
+        // If panel is expanded and click is outside the content area, close it
+        else if (infoPanel && infoPanel.classList.contains('expanded')) {
+            const infoContent = event.target.closest('.info-content');
+            if (!infoContent) {
+                this.closeInfoPanel();
+            }
+        }
+    }
+
+    /**
      * Show info panel for an object
      */
     showInfoPanel(object) {
-        const infoPanel = document.getElementById('info-panel');
-        const infoCircle = document.getElementById('info-circle');
         const infoTitle = document.getElementById('info-title');
         const infoDescription = document.getElementById('info-description');
 
-        if (infoPanel && infoTitle && infoDescription) {
+        if (infoTitle && infoDescription) {
             // Store the current object info
             this.currentInfoObject = object;
 
@@ -562,8 +586,18 @@ class PlaygroundApp {
             infoTitle.textContent = this.formatName(object.userData.name);
             infoDescription.textContent = object.userData.description || 'A wonderful part of the playground!';
 
-            // Hide circle and expand panel
-            if (infoCircle) infoCircle.classList.add('hidden');
+            // Expand panel
+            this.expandInfoPanel();
+        }
+    }
+
+    /**
+     * Expand the info panel from circle to card
+     */
+    expandInfoPanel() {
+        const infoPanel = document.getElementById('info-panel');
+
+        if (infoPanel) {
             infoPanel.classList.add('expanded');
             infoPanel.setAttribute('aria-hidden', 'false');
         }
@@ -574,31 +608,10 @@ class PlaygroundApp {
      */
     closeInfoPanel() {
         const infoPanel = document.getElementById('info-panel');
-        const infoCircle = document.getElementById('info-circle');
 
         if (infoPanel) {
             infoPanel.classList.remove('expanded');
             infoPanel.setAttribute('aria-hidden', 'true');
-
-            // Show circle again after animation
-            setTimeout(() => {
-                if (infoCircle) infoCircle.classList.remove('hidden');
-            }, 300);
-        }
-    }
-
-    /**
-     * Toggle info panel (when clicking the circle)
-     */
-    toggleInfoPanel() {
-        const infoPanel = document.getElementById('info-panel');
-
-        if (infoPanel && infoPanel.classList.contains('expanded')) {
-            // If already expanded, close it
-            this.closeInfoPanel();
-        } else if (this.currentInfoObject) {
-            // If collapsed and we have info to show, expand it
-            this.showInfoPanel(this.currentInfoObject);
         }
     }
 
