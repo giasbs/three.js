@@ -90,22 +90,19 @@
             🔇 Sound Off
         </button>
 
-        <!-- Info Circle Button (Bottom Right) -->
-        <button
-            id="info-circle"
-            class="info-circle"
-            aria-label="Information panel"
-            title="Click to view information">
-            <span class="circle-icon">ℹ️</span>
-        </button>
-
         <!-- Info Panel Modal (Starts as circle, expands to card) -->
         <div id="info-panel" class="info-panel" role="dialog" aria-labelledby="info-title" aria-hidden="true">
+            <!-- Circle Icon (visible when collapsed) -->
+            <div id="info-circle" class="info-circle-icon">
+                <span class="circle-emoji">ℹ️</span>
+            </div>
+
+            <!-- Card Content (visible when expanded) -->
             <div class="info-content">
                 <button
                     id="close-info"
                     class="close-btn"
-                    aria-label="Close information panel (Press Escape or click circle)"
+                    aria-label="Close information panel (Press Escape)"
                     title="Close">
                     ✕
                 </button>
