@@ -16,6 +16,7 @@ class PlaygroundApp {
         this.audioContext = null;
         this.audioPlaying = false;
         this.oscillators = [];
+        this.currentInfoObject = null;
 
         // Camera viewpoints for different zones
         this.cameraViewpoints = {
@@ -87,8 +88,11 @@ class PlaygroundApp {
         // Keyboard navigation
         document.addEventListener('keydown', this.onKeyDown.bind(this));
 
-        // Info panel close button
+        // Info panel controls
+        const infoCircle = document.getElementById('info-circle');
         const closeBtn = document.getElementById('close-info');
+
+        if (infoCircle) infoCircle.addEventListener('click', this.toggleInfoPanel.bind(this));
         if (closeBtn) closeBtn.addEventListener('click', this.closeInfoPanel.bind(this));
     }
 
@@ -546,24 +550,55 @@ class PlaygroundApp {
      */
     showInfoPanel(object) {
         const infoPanel = document.getElementById('info-panel');
+        const infoCircle = document.getElementById('info-circle');
         const infoTitle = document.getElementById('info-title');
         const infoDescription = document.getElementById('info-description');
 
         if (infoPanel && infoTitle && infoDescription) {
+            // Store the current object info
+            this.currentInfoObject = object;
+
+            // Update content
             infoTitle.textContent = this.formatName(object.userData.name);
             infoDescription.textContent = object.userData.description || 'A wonderful part of the playground!';
 
-            infoPanel.classList.add('visible');
+            // Hide circle and expand panel
+            if (infoCircle) infoCircle.classList.add('hidden');
+            infoPanel.classList.add('expanded');
+            infoPanel.setAttribute('aria-hidden', 'false');
         }
     }
 
     /**
-     * Close info panel
+     * Close info panel (collapse back to circle)
      */
     closeInfoPanel() {
         const infoPanel = document.getElementById('info-panel');
+        const infoCircle = document.getElementById('info-circle');
+
         if (infoPanel) {
-            infoPanel.classList.remove('visible');
+            infoPanel.classList.remove('expanded');
+            infoPanel.setAttribute('aria-hidden', 'true');
+
+            // Show circle again after animation
+            setTimeout(() => {
+                if (infoCircle) infoCircle.classList.remove('hidden');
+            }, 300);
+        }
+    }
+
+    /**
+     * Toggle info panel (when clicking the circle)
+     */
+    toggleInfoPanel() {
+        const infoPanel = document.getElementById('info-panel');
+
+        if (infoPanel && infoPanel.classList.contains('expanded')) {
+            // If already expanded, close it
+            this.closeInfoPanel();
+        } else if (this.currentInfoObject) {
+            // If collapsed and we have info to show, expand it
+            this.showInfoPanel(this.currentInfoObject);
         }
     }
 
