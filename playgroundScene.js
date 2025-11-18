@@ -1636,6 +1636,13 @@ export class PlaygroundScene {
     }
 
     /**
+     * Get scene for external use
+     */
+    getScene() {
+        return this.scene;
+    }
+
+    /**
      * Get camera for external use
      */
     getCamera() {
