@@ -33,6 +33,7 @@ export class PlaygroundScene {
         this.balls = [];
         this.fountain = null;
         this.windmills = [];
+        this.character = null;
 
         // Textures
         this.textures = {};
@@ -331,6 +332,7 @@ export class PlaygroundScene {
         this.createExplorationZone();
         this.createAtmosphere();
         this.createBoards();
+        this.createCharacter();
     }
 
     /**
@@ -1457,6 +1459,199 @@ export class PlaygroundScene {
     }
 
     /**
+     * Create a walking male character
+     */
+    createCharacter() {
+        const characterGroup = new THREE.Group();
+
+        // Body proportions
+        const bodyColor = 0x4a90e2; // Blue shirt
+        const skinColor = 0xffdbac; // Skin tone
+        const pantsColor = 0x2c3e50; // Dark pants
+        const hairColor = 0x3d2817; // Brown hair
+
+        // Head
+        const headGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+        const headMaterial = new THREE.MeshStandardMaterial({
+            color: skinColor,
+            roughness: 0.8
+        });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.set(0, 1.6, 0);
+        head.castShadow = true;
+        characterGroup.add(head);
+
+        // Hair
+        const hairGeometry = new THREE.SphereGeometry(0.32, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+        const hairMaterial = new THREE.MeshStandardMaterial({
+            color: hairColor,
+            roughness: 0.9
+        });
+        const hair = new THREE.Mesh(hairGeometry, hairMaterial);
+        hair.position.set(0, 1.75, 0);
+        hair.castShadow = true;
+        characterGroup.add(hair);
+
+        // Torso
+        const torsoGeometry = new THREE.CylinderGeometry(0.25, 0.3, 0.8, 16);
+        const torsoMaterial = new THREE.MeshStandardMaterial({
+            color: bodyColor,
+            roughness: 0.7
+        });
+        const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
+        torso.position.set(0, 0.9, 0);
+        torso.castShadow = true;
+        characterGroup.add(torso);
+
+        // Arms
+        const armGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.7, 8);
+        const armMaterial = new THREE.MeshStandardMaterial({
+            color: bodyColor,
+            roughness: 0.7
+        });
+
+        const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+        leftArm.position.set(-0.35, 0.9, 0);
+        leftArm.castShadow = true;
+        characterGroup.add(leftArm);
+
+        const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+        rightArm.position.set(0.35, 0.9, 0);
+        rightArm.castShadow = true;
+        characterGroup.add(rightArm);
+
+        // Hands
+        const handGeometry = new THREE.SphereGeometry(0.09, 8, 8);
+        const handMaterial = new THREE.MeshStandardMaterial({
+            color: skinColor,
+            roughness: 0.8
+        });
+
+        const leftHand = new THREE.Mesh(handGeometry, handMaterial);
+        leftHand.position.set(-0.35, 0.5, 0);
+        leftHand.castShadow = true;
+        characterGroup.add(leftHand);
+
+        const rightHand = new THREE.Mesh(handGeometry, handMaterial);
+        rightHand.position.set(0.35, 0.5, 0);
+        rightHand.castShadow = true;
+        characterGroup.add(rightHand);
+
+        // Legs
+        const legGeometry = new THREE.CylinderGeometry(0.1, 0.09, 0.7, 8);
+        const legMaterial = new THREE.MeshStandardMaterial({
+            color: pantsColor,
+            roughness: 0.8
+        });
+
+        const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+        leftLeg.position.set(-0.12, 0.15, 0);
+        leftLeg.castShadow = true;
+        characterGroup.add(leftLeg);
+
+        const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+        rightLeg.position.set(0.12, 0.15, 0);
+        rightLeg.castShadow = true;
+        characterGroup.add(rightLeg);
+
+        // Shoes
+        const shoeGeometry = new THREE.BoxGeometry(0.15, 0.1, 0.25);
+        const shoeMaterial = new THREE.MeshStandardMaterial({
+            color: 0x654321,
+            roughness: 0.9
+        });
+
+        const leftShoe = new THREE.Mesh(shoeGeometry, shoeMaterial);
+        leftShoe.position.set(-0.12, -0.15, 0.05);
+        leftShoe.castShadow = true;
+        characterGroup.add(leftShoe);
+
+        const rightShoe = new THREE.Mesh(shoeGeometry, shoeMaterial);
+        rightShoe.position.set(0.12, -0.15, 0.05);
+        rightShoe.castShadow = true;
+        characterGroup.add(rightShoe);
+
+        // Starting position
+        characterGroup.position.set(0, 0, 0);
+
+        // Store references for animation
+        this.character = {
+            group: characterGroup,
+            leftArm: leftArm,
+            rightArm: rightArm,
+            leftLeg: leftLeg,
+            rightLeg: rightLeg,
+            leftHand: leftHand,
+            rightHand: rightHand,
+            leftShoe: leftShoe,
+            rightShoe: rightShoe,
+            pathProgress: 0,
+            walkSpeed: 0.3,
+            // Walking path points (circular around playground)
+            path: [
+                { x: 0, z: 15 },
+                { x: 15, z: 10 },
+                { x: 20, z: 0 },
+                { x: 15, z: -10 },
+                { x: 0, z: -15 },
+                { x: -15, z: -10 },
+                { x: -20, z: 0 },
+                { x: -15, z: 10 }
+            ]
+        };
+
+        this.scene.add(characterGroup);
+    }
+
+    /**
+     * Update character walking animation
+     */
+    updateCharacter(time) {
+        if (!this.character) return;
+
+        const char = this.character;
+        const path = char.path;
+
+        // Update path progress
+        char.pathProgress += char.walkSpeed * 0.01;
+        if (char.pathProgress >= path.length) {
+            char.pathProgress = 0;
+        }
+
+        // Get current and next points
+        const currentIndex = Math.floor(char.pathProgress);
+        const nextIndex = (currentIndex + 1) % path.length;
+        const t = char.pathProgress - currentIndex;
+
+        const current = path[currentIndex];
+        const next = path[nextIndex];
+
+        // Interpolate position
+        char.group.position.x = current.x + (next.x - current.x) * t;
+        char.group.position.z = current.z + (next.z - current.z) * t;
+
+        // Calculate direction for rotation
+        const dx = next.x - current.x;
+        const dz = next.z - current.z;
+        const angle = Math.atan2(dx, dz);
+        char.group.rotation.y = angle;
+
+        // Walking animation (arm and leg swing)
+        const walkCycle = time * 5;
+
+        // Arms swing opposite to legs
+        char.leftArm.rotation.x = Math.sin(walkCycle) * 0.5;
+        char.rightArm.rotation.x = Math.sin(walkCycle + Math.PI) * 0.5;
+
+        // Legs swing
+        char.leftLeg.rotation.x = Math.sin(walkCycle + Math.PI) * 0.4;
+        char.rightLeg.rotation.x = Math.sin(walkCycle) * 0.4;
+
+        // Slight body bob
+        char.group.position.y = Math.abs(Math.sin(walkCycle * 2)) * 0.05;
+    }
+
+    /**
      * Create billboard/whiteboard structures for project overviews
      */
     createBoards() {
@@ -1935,6 +2130,9 @@ export class PlaygroundScene {
 
         // Update balls
         this.updateBalls(deltaTime);
+
+        // Update walking character
+        this.updateCharacter(time);
 
         // Handle animating objects (swings, seesaw)
         this.animatingObjects.forEach((data, object) => {
