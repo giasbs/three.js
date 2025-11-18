@@ -1,90 +1,46 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WonderPlay Garden - Interactive 3D Playground</title>
-    <meta name="description" content="Explore a whimsical 3D playground filled with interactive elements, colorful scenery, and delightful surprises.">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <!-- Loading Screen -->
-    <div id="loader" class="loader">
-        <div class="loader-content">
-            <div class="loader-spinner"></div>
-            <p>Loading WonderPlay Garden...</p>
-        </div>
-    </div>
-
-    <!-- 3D Canvas -->
-    <canvas id="canvas" aria-label="Interactive 3D playground scene"></canvas>
-
-    <!-- UI Overlay -->
-    <div class="ui-overlay">
-        <!-- Header -->
-        <header class="header">
-            <h1 class="title">
-                <span class="title-icon">🎡</span>
-                WonderPlay Garden
-            </h1>
-            <p class="subtitle">A Magical Interactive Playground</p>
-        </header>
-
-        <!-- Navigation Panel -->
-        <nav class="nav-panel" role="navigation" aria-label="Playground zones navigation">
-            <h2 class="nav-title">Explore Zones</h2>
-            <div class="nav-buttons">
-                <button
-                    id="overview-btn"
-                    class="nav-btn"
-                    aria-label="View overview of the entire playground (Press 1)"
-                    title="Press 1">
-                    <span class="btn-icon">🌍</span>
-                    <span class="btn-text">Overview</span>
-                </button>
-                <button
-                    id="garden-btn"
-                    class="nav-btn"
-                    aria-label="View the garden area with flowers and trees (Press 2)"
-                    title="Press 2">
-                    <span class="btn-icon">🌸</span>
-                    <span class="btn-text">Garden</span>
-                </button>
-                <button
-                    id="play-area-btn"
-                    class="nav-btn"
-                    aria-label="View the play area with swing and slide (Press 3)"
-                    title="Press 3">
-                    <span class="btn-icon">🎪</span>
-                    <span class="btn-text">Play Area</span>
-                </button>
-                <button
-                    id="relax-btn"
-                    class="nav-btn"
-                    aria-label="View the relaxation zone with benches (Press 4)"
-                    title="Press 4">
-                    <span class="btn-icon">🪑</span>
-                    <span class="btn-text">Relax Zone</span>
-                </button>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>WonderPlay Garden - Interactive 3D Playground</title>
+        <meta
+            name="description"
+            content="Explore a whimsical 3D playground filled with interactive elements, colorful scenery, and delightful surprises."
+        />
+        <link rel="stylesheet" href="style.css" />
+    </head>
+    <body>
+        <!-- Loading Screen -->
+        <div id="loader" class="loader">
+            <div class="loader-content">
+                <div class="loader-spinner"></div>
+                <p>Loading WonderPlay Garden...</p>
             </div>
-        </nav>
+        </div>
 
-        <!-- Sound Toggle -->
-        <button
-            id="sound-toggle"
-            class="sound-toggle"
-            aria-label="Turn on ambient sound"
-            title="Toggle ambient sound">
-            🔇 Sound Off
-        </button>
+        <!-- 3D Canvas -->
+        <canvas
+            id="canvas"
+            aria-label="Interactive 3D playground scene"
+        ></canvas>
 
-        <!-- Footer -->
-        <footer class="footer">
-            <p>Built with Three.js • Explore, interact, and have fun!</p>
-        </footer>
-    </div>
+        <!-- UI Overlay -->
+        <div class="ui-overlay">
+            <!-- Header -->
 
-    <!-- Main JavaScript Module -->
-    <script type="module" src="main.js"></script>
-</body>
+            <!-- Sound Toggle -->
+            <button
+                id="sound-toggle"
+                class="sound-toggle"
+                aria-label="Turn on ambient sound"
+                title="Toggle ambient sound"
+            >
+                🔇 Sound Off
+            </button>
+        </div>
+
+        <!-- Main JavaScript Module -->
+        <script type="module" src="main.js"></script>
+    </body>
 </html>
