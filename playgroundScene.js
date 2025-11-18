@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { createNoise3D } from 'simplex-noise';
 
 /**
  * PlaygroundScene Class
@@ -17,6 +18,17 @@ export class PlaygroundScene {
         this.hoveredObject = null;
         this.animatingObjects = new Map();
         this.clock = new THREE.Clock(); // For shader animations
+
+        // Wind system
+        this.noise3D = createNoise3D();
+        this.windStrength = 0.5;
+        this.windDirection = new THREE.Vector2(1, 0.3);
+        this.grassBlades = [];
+        this.treeFoliage = [];
+        this.leaves = [];
+        this.butterflies = [];
+        this.clouds = [];
+        this.birds = [];
 
         this.init();
     }
@@ -71,6 +83,16 @@ export class PlaygroundScene {
         this.createPath();
         this.createLamps();
         this.createSky();
+
+        // Create living elements
+        this.createAnimatedGrassBlades();
+        this.createRocks();
+        this.createBushes();
+        this.createMushrooms();
+        this.createClouds();
+        this.createButterflies();
+        this.createBirds();
+        this.createFallingLeaves();
     }
 
     /**
@@ -269,27 +291,76 @@ export class PlaygroundScene {
         trunk.castShadow = true;
         treeGroup.add(trunk);
 
-        // Foliage (3 spheres stacked) with toon shading
+        // Foliage (3 spheres stacked) with animated shader
         const foliageGeometry = new THREE.SphereGeometry(2, 16, 16);
-        const foliageMaterial = this.createToonMaterial(0x2d8b2d);
 
-        const foliage1 = new THREE.Mesh(foliageGeometry, foliageMaterial);
+        // Custom shader for animated foliage
+        const foliageMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 },
+                uWindStrength: { value: this.windStrength },
+                uBaseColor: { value: new THREE.Color(0x2d8b2d) },
+                uTreePosition: { value: new THREE.Vector2(x, z) }
+            },
+            vertexShader: `
+                uniform float uTime;
+                uniform float uWindStrength;
+                uniform vec2 uTreePosition;
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    vPosition = position;
+
+                    vec3 pos = position;
+                    // Wind sway based on height and tree position
+                    float windWave = sin(uTime * 2.0 + uTreePosition.x * 0.5) * cos(uTime * 1.5 + uTreePosition.y * 0.5);
+                    float heightFactor = (position.y + 2.0) / 4.0; // More movement at top
+                    pos.x += windWave * uWindStrength * heightFactor * 0.3;
+                    pos.z += sin(uTime * 1.8 + uTreePosition.x) * uWindStrength * heightFactor * 0.2;
+
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 uBaseColor;
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+
+                void main() {
+                    vec3 lightDir = normalize(vec3(1.0, 1.0, 0.5));
+                    float diff = max(dot(vNormal, lightDir), 0.0);
+
+                    // Toon shading
+                    float toonDiff = step(0.3, diff) * 0.3 + step(0.6, diff) * 0.3 + step(0.9, diff) * 0.4;
+
+                    vec3 color = uBaseColor * (toonDiff + 0.3);
+                    gl_FragColor = vec4(color, 1.0);
+                }
+            `
+        });
+
+        const foliage1 = new THREE.Mesh(foliageGeometry, foliageMaterial.clone());
         foliage1.position.y = 4;
         foliage1.scale.set(1, 1, 1);
         foliage1.castShadow = true;
         treeGroup.add(foliage1);
+        this.treeFoliage.push({ mesh: foliage1, material: foliage1.material, baseY: 4 });
 
-        const foliage2 = new THREE.Mesh(foliageGeometry, foliageMaterial);
+        const foliage2 = new THREE.Mesh(foliageGeometry, foliageMaterial.clone());
         foliage2.position.y = 5.5;
         foliage2.scale.set(0.8, 0.8, 0.8);
         foliage2.castShadow = true;
         treeGroup.add(foliage2);
+        this.treeFoliage.push({ mesh: foliage2, material: foliage2.material, baseY: 5.5 });
 
-        const foliage3 = new THREE.Mesh(foliageGeometry, foliageMaterial);
+        const foliage3 = new THREE.Mesh(foliageGeometry, foliageMaterial.clone());
         foliage3.position.y = 6.5;
         foliage3.scale.set(0.5, 0.5, 0.5);
         foliage3.castShadow = true;
         treeGroup.add(foliage3);
+        this.treeFoliage.push({ mesh: foliage3, material: foliage3.material, baseY: 6.5 });
 
         treeGroup.position.set(x, 0, z);
         this.scene.add(treeGroup);
@@ -852,6 +923,415 @@ export class PlaygroundScene {
     }
 
     /**
+     * Create animated grass blades using instanced meshes
+     */
+    createAnimatedGrassBlades() {
+        const grassCount = 2000;
+        const bladeGeometry = new THREE.PlaneGeometry(0.1, 0.6, 1, 3);
+
+        // Custom shader for grass blades
+        const bladeMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 },
+                uWindStrength: { value: this.windStrength }
+            },
+            vertexShader: `
+                uniform float uTime;
+                uniform float uWindStrength;
+                attribute vec3 instancePosition;
+                attribute float instanceOffset;
+                varying vec2 vUv;
+
+                void main() {
+                    vUv = uv;
+                    vec3 pos = position;
+
+                    // Wind sway based on height
+                    float heightFactor = uv.y;
+                    float windWave = sin(uTime * 3.0 + instancePosition.x + instanceOffset) *
+                                    cos(uTime * 2.0 + instancePosition.z + instanceOffset);
+                    pos.x += windWave * uWindStrength * heightFactor * 0.2;
+                    pos.z += sin(uTime * 2.5 + instanceOffset) * uWindStrength * heightFactor * 0.1;
+
+                    vec4 modelPosition = modelMatrix * vec4(pos + instancePosition, 1.0);
+                    gl_Position = projectionMatrix * viewMatrix * modelPosition;
+                }
+            `,
+            fragmentShader: `
+                varying vec2 vUv;
+
+                void main() {
+                    vec3 grassColor = mix(vec3(0.29, 0.58, 0.28), vec3(0.42, 0.75, 0.35), vUv.y);
+                    gl_FragColor = vec4(grassColor, 1.0);
+                }
+            `,
+            side: THREE.DoubleSide
+        });
+
+        const instancedMesh = new THREE.InstancedMesh(bladeGeometry, bladeMaterial, grassCount);
+        const dummy = new THREE.Object3D();
+        const positions = new Float32Array(grassCount * 3);
+        const offsets = new Float32Array(grassCount);
+
+        for (let i = 0; i < grassCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.sqrt(Math.random()) * 45;
+            const x = Math.cos(angle) * distance;
+            const z = Math.sin(angle) * distance;
+
+            positions[i * 3] = x;
+            positions[i * 3 + 1] = 0;
+            positions[i * 3 + 2] = z;
+            offsets[i] = Math.random() * Math.PI * 2;
+
+            dummy.position.set(x, 0, z);
+            dummy.rotation.y = Math.random() * Math.PI * 2;
+            dummy.scale.set(
+                0.8 + Math.random() * 0.4,
+                0.8 + Math.random() * 0.6,
+                1
+            );
+            dummy.updateMatrix();
+            instancedMesh.setMatrixAt(i, dummy.matrix);
+        }
+
+        bladeGeometry.setAttribute('instancePosition', new THREE.InstancedBufferAttribute(positions, 3));
+        bladeGeometry.setAttribute('instanceOffset', new THREE.InstancedBufferAttribute(offsets, 1));
+
+        this.scene.add(instancedMesh);
+        this.grassBlades.push({ mesh: instancedMesh, material: bladeMaterial });
+    }
+
+    /**
+     * Create scattered rocks
+     */
+    createRocks() {
+        const rockPositions = [
+            { x: -10, z: -3 }, { x: 12, z: -7 }, { x: -14, z: 5 },
+            { x: 10, z: 8 }, { x: -5, z: -15 }, { x: 15, z: -10 },
+            { x: -8, z: 12 }, { x: 5, z: -12 }, { x: -16, z: -8 }
+        ];
+
+        rockPositions.forEach((pos, index) => {
+            const rockGroup = new THREE.Group();
+
+            // Create irregular rock shape
+            const rockGeometry = new THREE.DodecahedronGeometry(0.3 + Math.random() * 0.4, 0);
+            const rockMaterial = new THREE.MeshStandardMaterial({
+                color: 0x808080,
+                roughness: 0.9,
+                flatShading: true
+            });
+
+            const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+            rock.position.y = 0.2;
+            rock.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+            rock.scale.set(
+                0.8 + Math.random() * 0.5,
+                0.6 + Math.random() * 0.4,
+                0.8 + Math.random() * 0.5
+            );
+            rock.castShadow = true;
+            rockGroup.add(rock);
+
+            rockGroup.position.set(pos.x, 0, pos.z);
+            this.scene.add(rockGroup);
+        });
+    }
+
+    /**
+     * Create bushes with animated leaves
+     */
+    createBushes() {
+        const bushPositions = [
+            { x: -12, z: -8 }, { x: 14, z: -5 }, { x: -10, z: 10 },
+            { x: 12, z: 9 }, { x: -15, z: 0 }, { x: 16, z: 3 }
+        ];
+
+        bushPositions.forEach(pos => {
+            const bushGroup = new THREE.Group();
+
+            // Multiple spheres for bush shape
+            for (let i = 0; i < 3; i++) {
+                const bushGeometry = new THREE.SphereGeometry(0.5 + Math.random() * 0.3, 8, 8);
+                const bushMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x3a7a3a,
+                    roughness: 0.8
+                });
+
+                const sphere = new THREE.Mesh(bushGeometry, bushMaterial);
+                sphere.position.set(
+                    (Math.random() - 0.5) * 0.8,
+                    0.3 + Math.random() * 0.4,
+                    (Math.random() - 0.5) * 0.8
+                );
+                sphere.castShadow = true;
+                bushGroup.add(sphere);
+            }
+
+            bushGroup.position.set(pos.x, 0, pos.z);
+            this.scene.add(bushGroup);
+        });
+    }
+
+    /**
+     * Create whimsical mushrooms
+     */
+    createMushrooms() {
+        const mushroomPositions = [
+            { x: -6, z: -5 }, { x: 8, z: -4 }, { x: -11, z: 7 },
+            { x: 9, z: 6 }, { x: -3, z: 10 }, { x: 4, z: -8 }
+        ];
+
+        mushroomPositions.forEach(pos => {
+            const mushroomGroup = new THREE.Group();
+
+            // Stem
+            const stemGeometry = new THREE.CylinderGeometry(0.1, 0.08, 0.4, 8);
+            const stemMaterial = new THREE.MeshStandardMaterial({
+                color: 0xf5f5dc,
+                roughness: 0.7
+            });
+            const stem = new THREE.Mesh(stemGeometry, stemMaterial);
+            stem.position.y = 0.2;
+            stem.castShadow = true;
+            mushroomGroup.add(stem);
+
+            // Cap
+            const capGeometry = new THREE.SphereGeometry(0.25, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+            const capMaterial = new THREE.MeshStandardMaterial({
+                color: 0xff6347,
+                roughness: 0.6
+            });
+            const cap = new THREE.Mesh(capGeometry, capMaterial);
+            cap.position.y = 0.4;
+            cap.castShadow = true;
+            mushroomGroup.add(cap);
+
+            // White spots
+            for (let i = 0; i < 3; i++) {
+                const spotGeometry = new THREE.SphereGeometry(0.05, 6, 6);
+                const spotMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+                const spot = new THREE.Mesh(spotGeometry, spotMaterial);
+                const angle = (i / 3) * Math.PI * 2;
+                spot.position.set(
+                    Math.cos(angle) * 0.15,
+                    0.45,
+                    Math.sin(angle) * 0.15
+                );
+                mushroomGroup.add(spot);
+            }
+
+            mushroomGroup.position.set(pos.x, 0, pos.z);
+            this.scene.add(mushroomGroup);
+        });
+    }
+
+    /**
+     * Create animated clouds
+     */
+    createClouds() {
+        for (let i = 0; i < 8; i++) {
+            const cloudGroup = new THREE.Group();
+            const cloudMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.8,
+                roughness: 1
+            });
+
+            // Create cloud from multiple spheres
+            for (let j = 0; j < 5; j++) {
+                const cloudGeometry = new THREE.SphereGeometry(1 + Math.random() * 0.5, 8, 8);
+                const cloudPart = new THREE.Mesh(cloudGeometry, cloudMaterial);
+                cloudPart.position.set(
+                    (j - 2) * 1.5 + (Math.random() - 0.5),
+                    (Math.random() - 0.5) * 0.5,
+                    (Math.random() - 0.5) * 0.5
+                );
+                cloudPart.scale.set(
+                    1 + Math.random() * 0.3,
+                    0.7 + Math.random() * 0.3,
+                    0.8 + Math.random() * 0.3
+                );
+                cloudGroup.add(cloudPart);
+            }
+
+            cloudGroup.position.set(
+                (Math.random() - 0.5) * 100,
+                20 + Math.random() * 15,
+                (Math.random() - 0.5) * 100
+            );
+            cloudGroup.scale.set(2, 1.5, 2);
+
+            this.scene.add(cloudGroup);
+            this.clouds.push({
+                mesh: cloudGroup,
+                speed: 0.5 + Math.random() * 1.0,
+                offset: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    /**
+     * Create animated butterflies
+     */
+    createButterflies() {
+        for (let i = 0; i < 6; i++) {
+            const butterflyGroup = new THREE.Group();
+
+            // Body
+            const bodyGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.2, 6);
+            const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            butterflyGroup.add(body);
+
+            // Wings
+            const wingColors = [0xff69b4, 0xffd700, 0xff6347, 0x9370db];
+            const wingColor = wingColors[i % wingColors.length];
+            const wingGeometry = new THREE.CircleGeometry(0.15, 8);
+            const wingMaterial = new THREE.MeshStandardMaterial({
+                color: wingColor,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.9
+            });
+
+            const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            leftWing.position.set(-0.1, 0, 0);
+            leftWing.rotation.y = Math.PI / 4;
+            butterflyGroup.add(leftWing);
+
+            const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            rightWing.position.set(0.1, 0, 0);
+            rightWing.rotation.y = -Math.PI / 4;
+            butterflyGroup.add(rightWing);
+
+            // Starting position
+            const angle = (i / 6) * Math.PI * 2;
+            const radius = 15 + Math.random() * 10;
+            butterflyGroup.position.set(
+                Math.cos(angle) * radius,
+                1 + Math.random() * 2,
+                Math.sin(angle) * radius
+            );
+
+            this.scene.add(butterflyGroup);
+            this.butterflies.push({
+                mesh: butterflyGroup,
+                leftWing: leftWing,
+                rightWing: rightWing,
+                speed: 0.5 + Math.random() * 0.5,
+                radius: radius,
+                angle: angle,
+                heightOffset: Math.random() * Math.PI * 2,
+                pathOffset: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    /**
+     * Create flying birds
+     */
+    createBirds() {
+        for (let i = 0; i < 4; i++) {
+            const birdGroup = new THREE.Group();
+
+            // Simple bird shape (V-shape)
+            const birdGeometry = new THREE.ConeGeometry(0.1, 0.3, 3);
+            const birdMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+            const body = new THREE.Mesh(birdGeometry, birdMaterial);
+            body.rotation.x = Math.PI / 2;
+            birdGroup.add(body);
+
+            // Wings
+            const wingGeometry = new THREE.PlaneGeometry(0.4, 0.15);
+            const wingMaterial = new THREE.MeshStandardMaterial({
+                color: 0x444444,
+                side: THREE.DoubleSide
+            });
+
+            const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            leftWing.position.set(-0.15, 0, 0);
+            birdGroup.add(leftWing);
+
+            const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            rightWing.position.set(0.15, 0, 0);
+            birdGroup.add(rightWing);
+
+            birdGroup.position.set(
+                (Math.random() - 0.5) * 60,
+                15 + Math.random() * 10,
+                (Math.random() - 0.5) * 60
+            );
+
+            this.scene.add(birdGroup);
+            this.birds.push({
+                mesh: birdGroup,
+                leftWing: leftWing,
+                rightWing: rightWing,
+                speed: 2 + Math.random() * 1.5,
+                direction: new THREE.Vector3(
+                    (Math.random() - 0.5) * 2,
+                    (Math.random() - 0.5) * 0.2,
+                    (Math.random() - 0.5) * 2
+                ).normalize(),
+                wingPhase: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    /**
+     * Create falling leaves particle system
+     */
+    createFallingLeaves() {
+        const leafCount = 30;
+
+        for (let i = 0; i < leafCount; i++) {
+            const leafGeometry = new THREE.PlaneGeometry(0.15, 0.2);
+            const leafColors = [0xffa500, 0xff8c00, 0xff4500, 0xdaa520];
+            const leafMaterial = new THREE.MeshStandardMaterial({
+                color: leafColors[Math.floor(Math.random() * leafColors.length)],
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.9
+            });
+
+            const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
+            leaf.position.set(
+                (Math.random() - 0.5) * 40,
+                5 + Math.random() * 15,
+                (Math.random() - 0.5) * 40
+            );
+            leaf.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+
+            this.scene.add(leaf);
+            this.leaves.push({
+                mesh: leaf,
+                velocity: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.02,
+                    -0.02 - Math.random() * 0.02,
+                    (Math.random() - 0.5) * 0.02
+                ),
+                rotationSpeed: new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.05,
+                    (Math.random() - 0.5) * 0.05,
+                    (Math.random() - 0.5) * 0.1
+                ),
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    /**
      * Update method called every frame
      */
     update() {
@@ -865,6 +1345,130 @@ export class PlaygroundScene {
         if (this.groundMaterial) {
             this.groundMaterial.uniforms.uTime.value = elapsedTime;
         }
+
+        // Update wind system
+        this.updateWind(elapsedTime);
+
+        // Update living elements
+        this.updateClouds(elapsedTime);
+        this.updateButterflies(elapsedTime);
+        this.updateBirds(elapsedTime);
+        this.updateLeavesPhysics(elapsedTime);
+    }
+
+    /**
+     * Update wind-driven animations
+     */
+    updateWind(time) {
+        // Update grass blades
+        this.grassBlades.forEach(blade => {
+            blade.material.uniforms.uTime.value = time;
+        });
+
+        // Update tree foliage
+        this.treeFoliage.forEach(foliage => {
+            foliage.material.uniforms.uTime.value = time;
+        });
+    }
+
+    /**
+     * Update cloud movement
+     */
+    updateClouds(time) {
+        this.clouds.forEach(cloud => {
+            cloud.mesh.position.x += this.windDirection.x * cloud.speed * 0.01;
+            cloud.mesh.position.z += this.windDirection.y * cloud.speed * 0.01;
+
+            // Wrap around
+            if (cloud.mesh.position.x > 60) cloud.mesh.position.x = -60;
+            if (cloud.mesh.position.z > 60) cloud.mesh.position.z = -60;
+            if (cloud.mesh.position.x < -60) cloud.mesh.position.x = 60;
+            if (cloud.mesh.position.z < -60) cloud.mesh.position.z = 60;
+
+            // Subtle bobbing
+            cloud.mesh.position.y += Math.sin(time * 0.5 + cloud.offset) * 0.002;
+        });
+    }
+
+    /**
+     * Update butterfly flight patterns
+     */
+    updateButterflies(time) {
+        this.butterflies.forEach(butterfly => {
+            // Circular flight path with vertical oscillation
+            butterfly.angle += butterfly.speed * 0.01;
+            butterfly.mesh.position.x = Math.cos(butterfly.angle + butterfly.pathOffset) * butterfly.radius;
+            butterfly.mesh.position.z = Math.sin(butterfly.angle + butterfly.pathOffset) * butterfly.radius;
+            butterfly.mesh.position.y = 1.5 + Math.sin(time * 2 + butterfly.heightOffset) * 1.5;
+
+            // Wing flapping
+            const flapAngle = Math.sin(time * 10) * 0.4;
+            butterfly.leftWing.rotation.y = Math.PI / 4 + flapAngle;
+            butterfly.rightWing.rotation.y = -Math.PI / 4 - flapAngle;
+
+            // Face direction of movement
+            butterfly.mesh.rotation.y = butterfly.angle + butterfly.pathOffset + Math.PI / 2;
+        });
+    }
+
+    /**
+     * Update bird flight
+     */
+    updateBirds(time) {
+        this.birds.forEach(bird => {
+            // Move in direction
+            bird.mesh.position.add(bird.direction.clone().multiplyScalar(bird.speed * 0.02));
+
+            // Wrap around world bounds
+            if (Math.abs(bird.mesh.position.x) > 80) {
+                bird.mesh.position.x *= -0.9;
+                bird.direction.x *= -1;
+            }
+            if (Math.abs(bird.mesh.position.z) > 80) {
+                bird.mesh.position.z *= -0.9;
+                bird.direction.z *= -1;
+            }
+
+            // Wing flapping
+            bird.wingPhase += 0.15;
+            const flapAngle = Math.sin(bird.wingPhase) * 0.5;
+            bird.leftWing.rotation.z = flapAngle;
+            bird.rightWing.rotation.z = -flapAngle;
+
+            // Face direction
+            bird.mesh.lookAt(bird.mesh.position.clone().add(bird.direction));
+        });
+    }
+
+    /**
+     * Update falling leaves physics
+     */
+    updateLeavesPhysics(time) {
+        this.leaves.forEach(leaf => {
+            // Apply velocity
+            leaf.mesh.position.add(leaf.velocity);
+
+            // Add wind influence using simplex noise
+            const windInfluence = this.noise3D(
+                leaf.mesh.position.x * 0.1,
+                leaf.mesh.position.y * 0.1,
+                time * 0.5
+            );
+            leaf.mesh.position.x += windInfluence * 0.02;
+            leaf.mesh.position.z += Math.sin(time + leaf.phase) * 0.01;
+
+            // Rotate
+            leaf.mesh.rotation.x += leaf.rotationSpeed.x;
+            leaf.mesh.rotation.y += leaf.rotationSpeed.y;
+            leaf.mesh.rotation.z += leaf.rotationSpeed.z;
+
+            // Reset if too low
+            if (leaf.mesh.position.y < 0) {
+                leaf.mesh.position.y = 15 + Math.random() * 10;
+                leaf.mesh.position.x = (Math.random() - 0.5) * 40;
+                leaf.mesh.position.z = (Math.random() - 0.5) * 40;
+            }
+        });
     }
 
     /**
