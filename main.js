@@ -318,6 +318,20 @@ class PlaygroundApp {
                 // Kick the ball
                 this.kickBall(object, point);
                 break;
+
+            case 'seesaw':
+                // Rock the seesaw
+                if (!this.playgroundScene.animatingObjects.has(object)) {
+                    this.playgroundScene.animatingObjects.set(object, { type: 'seesaw' });
+                } else {
+                    this.playgroundScene.animatingObjects.delete(object);
+                }
+                break;
+
+            case 'house':
+                // Make windows glow
+                this.animateHouse(object);
+                break;
         }
     }
 
@@ -407,6 +421,38 @@ class PlaygroundApp {
                 requestAnimationFrame(animate);
             } else {
                 flower.rotation.z = 0;
+            }
+        };
+
+        animate();
+    }
+
+    /**
+     * Animate house windows glow
+     */
+    animateHouse(house) {
+        const windows = house.children.filter(child =>
+            child.geometry && child.geometry.type === 'BoxGeometry' &&
+            child.material.transparent
+        );
+
+        const startTime = performance.now();
+        const duration = 2000;
+
+        const animate = () => {
+            const elapsed = performance.now() - startTime;
+            const progress = elapsed / duration;
+
+            if (progress < 1) {
+                const glow = 0.3 + Math.sin(progress * Math.PI * 4) * 0.5;
+                windows.forEach(window => {
+                    window.material.emissiveIntensity = glow;
+                });
+                requestAnimationFrame(animate);
+            } else {
+                windows.forEach(window => {
+                    window.material.emissiveIntensity = 0.3;
+                });
             }
         };
 
