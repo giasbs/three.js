@@ -340,145 +340,6 @@ body {
     outline-offset: 2px;
 }
 
-/* ===== Info Panel Modal ===== */
-.info-panel {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    width: 60px;
-    height: 60px;
-    background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
-    border-radius: 50%;
-    box-shadow: var(--shadow-lg);
-    z-index: 100;
-    cursor: pointer;
-    overflow: hidden;
-    transition: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-/* Hover effect when collapsed */
-.info-panel:not(.expanded):hover {
-    transform: scale(1.1);
-    box-shadow: 0 8px 40px rgba(255, 107, 157, 0.4);
-}
-
-.info-panel:not(.expanded):active {
-    transform: scale(0.95);
-}
-
-/* Circle icon inside panel (visible when collapsed) */
-.info-circle-icon {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 1;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-}
-
-.circle-emoji {
-    font-size: 28px;
-    transition: transform 0.3s ease;
-}
-
-.info-panel:not(.expanded):hover .circle-emoji {
-    transform: rotate(15deg);
-}
-
-/* Hide circle icon when expanded */
-.info-panel.expanded .info-circle-icon {
-    opacity: 0;
-}
-
-/* Expanded state */
-.info-panel.expanded {
-    width: 90%;
-    max-width: 500px;
-    height: auto;
-    min-height: 250px;
-    right: 50%;
-    bottom: 30px;
-    transform: translateX(50%);
-    border-radius: var(--radius-lg);
-    background: var(--bg-primary);
-    border: 3px solid var(--color-accent);
-    backdrop-filter: blur(10px);
-    cursor: default;
-}
-
-/* Info content - hidden when collapsed */
-.info-content {
-    opacity: 0;
-    transform: scale(0.8);
-    transition: all 0.4s ease;
-    transition-delay: 0s;
-    padding: var(--spacing-xl);
-}
-
-/* Show content when expanded */
-.info-panel.expanded .info-content {
-    opacity: 1;
-    transform: scale(1);
-    transition-delay: 0.3s;
-}
-
-.close-btn {
-    position: absolute;
-    top: var(--spacing-sm);
-    right: var(--spacing-sm);
-    background: var(--color-primary);
-    color: white;
-    border: none;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    font-size: 20px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-family);
-    z-index: 10;
-}
-
-.close-btn:hover {
-    background: #e63946;
-    transform: rotate(90deg) scale(1.1);
-}
-
-.close-btn:focus {
-    outline: 3px solid var(--color-blue);
-    outline-offset: 2px;
-}
-
-.info-icon {
-    font-size: 48px;
-    text-align: center;
-    margin-bottom: var(--spacing-md);
-}
-
-.info-title {
-    font-size: var(--font-size-xl);
-    font-weight: 700;
-    color: var(--color-primary);
-    margin-bottom: var(--spacing-md);
-    text-align: center;
-}
-
-.info-description {
-    font-size: var(--font-size-md);
-    color: var(--text-secondary);
-    text-align: center;
-    line-height: 1.8;
-}
-
 /* ===== Footer ===== */
 .footer {
     grid-area: footer;
@@ -573,27 +434,6 @@ body {
         min-width: auto;
     }
 
-    .info-panel {
-        bottom: 20px;
-        right: 20px;
-        width: 50px;
-        height: 50px;
-    }
-
-    .circle-emoji {
-        font-size: 24px;
-    }
-
-    .info-panel.expanded {
-        width: 95%;
-        right: 50%;
-        bottom: 20px;
-    }
-
-    .info-content {
-        padding: var(--spacing-lg);
-    }
-
     .instructions-list {
         font-size: 12px;
     }
@@ -621,27 +461,6 @@ body {
     .nav-panel,
     .instructions-panel {
         padding: var(--spacing-sm);
-    }
-
-    .info-panel {
-        bottom: 15px;
-        right: 15px;
-        width: 45px;
-        height: 45px;
-    }
-
-    .circle-emoji {
-        font-size: 20px;
-    }
-
-    .info-panel.expanded {
-        width: 95%;
-        right: 50%;
-        bottom: 15px;
-    }
-
-    .info-content {
-        padding: var(--spacing-md);
     }
 }
 
