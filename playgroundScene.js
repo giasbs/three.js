@@ -499,6 +499,9 @@ export class PlaygroundScene {
         this.createButterflies();
         this.createBirds();
         this.createFallingLeaves();
+
+        // Create mini house
+        this.createMiniHouse();
     }
 
     /**
@@ -1707,6 +1710,341 @@ export class PlaygroundScene {
                 phase: Math.random() * Math.PI * 2
             });
         }
+    }
+
+    /**
+     * Create a cozy mini house with one room
+     */
+    createMiniHouse() {
+        const houseGroup = new THREE.Group();
+
+        // Foundation (stone base)
+        const foundationGeometry = new THREE.BoxGeometry(6, 0.3, 5);
+        const foundationMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.stone,
+            normalMap: this.textures.stoneNormal,
+            normalScale: new THREE.Vector2(0.4, 0.4),
+            roughness: 0.9,
+            metalness: 0.0,
+            color: 0x999999
+        });
+        const foundation = new THREE.Mesh(foundationGeometry, foundationMaterial);
+        foundation.position.y = 0.15;
+        foundation.receiveShadow = true;
+        foundation.castShadow = true;
+        houseGroup.add(foundation);
+
+        // Floor (wood planks)
+        const floorGeometry = new THREE.BoxGeometry(5.5, 0.2, 4.5);
+        const floorMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.wood,
+            normalMap: this.textures.woodNormal,
+            normalScale: new THREE.Vector2(0.5, 0.5),
+            roughness: 0.8,
+            metalness: 0.0,
+            color: 0xc19a6b
+        });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.position.y = 0.4;
+        floor.receiveShadow = true;
+        houseGroup.add(floor);
+
+        // Walls (4 walls with wood texture)
+        const wallHeight = 3;
+        const wallThickness = 0.2;
+
+        // Front wall (with door opening)
+        const frontWallLeft = new THREE.BoxGeometry(1.5, wallHeight, wallThickness);
+        const wallMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.wood,
+            normalMap: this.textures.woodNormal,
+            normalScale: new THREE.Vector2(0.3, 0.3),
+            roughness: 0.85,
+            metalness: 0.0,
+            color: 0xa0826d
+        });
+
+        const leftWall = new THREE.Mesh(frontWallLeft, wallMaterial);
+        leftWall.position.set(-2, wallHeight / 2 + 0.5, 2.25);
+        leftWall.castShadow = true;
+        leftWall.receiveShadow = true;
+        houseGroup.add(leftWall);
+
+        const rightWall = new THREE.Mesh(frontWallLeft, wallMaterial);
+        rightWall.position.set(2, wallHeight / 2 + 0.5, 2.25);
+        rightWall.castShadow = true;
+        rightWall.receiveShadow = true;
+        houseGroup.add(rightWall);
+
+        // Top part above door
+        const topWall = new THREE.BoxGeometry(2, 1, wallThickness);
+        const topPart = new THREE.Mesh(topWall, wallMaterial);
+        topPart.position.set(0, 2.5 + 0.5, 2.25);
+        topPart.castShadow = true;
+        topPart.receiveShadow = true;
+        houseGroup.add(topPart);
+
+        // Back wall (with window)
+        const backWallLeft = new THREE.BoxGeometry(2, wallHeight, wallThickness);
+        const backLeft = new THREE.Mesh(backWallLeft, wallMaterial);
+        backLeft.position.set(-1.5, wallHeight / 2 + 0.5, -2.25);
+        backLeft.castShadow = true;
+        backLeft.receiveShadow = true;
+        houseGroup.add(backLeft);
+
+        const backRight = new THREE.Mesh(backWallLeft, wallMaterial);
+        backRight.position.set(1.5, wallHeight / 2 + 0.5, -2.25);
+        backRight.castShadow = true;
+        backRight.receiveShadow = true;
+        houseGroup.add(backRight);
+
+        const backTop = new THREE.BoxGeometry(1, 1.2, wallThickness);
+        const backTopPart = new THREE.Mesh(backTop, wallMaterial);
+        backTopPart.position.set(0, 2.4 + 0.5, -2.25);
+        backTopPart.castShadow = true;
+        backTopPart.receiveShadow = true;
+        houseGroup.add(backTopPart);
+
+        const backBottom = new THREE.BoxGeometry(1, 0.8, wallThickness);
+        const backBottomPart = new THREE.Mesh(backBottom, wallMaterial);
+        backBottomPart.position.set(0, 0.9, -2.25);
+        backBottomPart.castShadow = true;
+        backBottomPart.receiveShadow = true;
+        houseGroup.add(backBottomPart);
+
+        // Side walls
+        const sideWallGeometry = new THREE.BoxGeometry(wallThickness, wallHeight, 4.5);
+        const sideLeft = new THREE.Mesh(sideWallGeometry, wallMaterial);
+        sideLeft.position.set(-2.75, wallHeight / 2 + 0.5, 0);
+        sideLeft.castShadow = true;
+        sideLeft.receiveShadow = true;
+        houseGroup.add(sideLeft);
+
+        const sideRight = new THREE.Mesh(sideWallGeometry, wallMaterial);
+        sideRight.position.set(2.75, wallHeight / 2 + 0.5, 0);
+        sideRight.castShadow = true;
+        sideRight.receiveShadow = true;
+        houseGroup.add(sideRight);
+
+        // Door (wooden door)
+        const doorGeometry = new THREE.BoxGeometry(1.8, 2.2, 0.1);
+        const doorMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.darkWood,
+            normalMap: this.textures.woodNormal,
+            normalScale: new THREE.Vector2(0.4, 0.4),
+            roughness: 0.7,
+            metalness: 0.0,
+            color: 0x654321
+        });
+        const door = new THREE.Mesh(doorGeometry, doorMaterial);
+        door.position.set(0, 1.6, 2.35);
+        door.castShadow = true;
+        houseGroup.add(door);
+
+        // Door handle (metallic)
+        const handleGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+        const handleMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffd700,
+            metalness: 0.9,
+            roughness: 0.2
+        });
+        const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+        handle.position.set(0.7, 1.6, 2.45);
+        handle.castShadow = true;
+        houseGroup.add(handle);
+
+        // Window (back wall)
+        const windowFrameGeometry = new THREE.BoxGeometry(1.2, 1.4, 0.15);
+        const windowFrameMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.wood,
+            color: 0x8b7355,
+            roughness: 0.6
+        });
+        const windowFrame = new THREE.Mesh(windowFrameGeometry, windowFrameMaterial);
+        windowFrame.position.set(0, 1.8, -2.28);
+        windowFrame.castShadow = true;
+        houseGroup.add(windowFrame);
+
+        // Window panes (glass effect)
+        const windowGlassGeometry = new THREE.PlaneGeometry(1, 1.2);
+        const windowGlassMaterial = new THREE.MeshStandardMaterial({
+            color: 0x87ceeb,
+            transparent: true,
+            opacity: 0.3,
+            metalness: 0.9,
+            roughness: 0.1
+        });
+        const windowGlass = new THREE.Mesh(windowGlassGeometry, windowGlassMaterial);
+        windowGlass.position.set(0, 1.8, -2.35);
+        houseGroup.add(windowGlass);
+
+        // Roof (pitched roof)
+        const roofGeometry = new THREE.ConeGeometry(4.2, 2, 4);
+        const roofMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8b4513,
+            roughness: 0.9,
+            metalness: 0.0
+        });
+        const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+        roof.position.set(0, wallHeight + 1.5, 0);
+        roof.rotation.y = Math.PI / 4;
+        roof.castShadow = true;
+        houseGroup.add(roof);
+
+        // Chimney
+        const chimneyGeometry = new THREE.BoxGeometry(0.5, 1.5, 0.5);
+        const chimneyMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.stone,
+            normalMap: this.textures.stoneNormal,
+            color: 0x8b0000,
+            roughness: 0.8
+        });
+        const chimney = new THREE.Mesh(chimneyGeometry, chimneyMaterial);
+        chimney.position.set(1.5, wallHeight + 1.8, -1);
+        chimney.castShadow = true;
+        houseGroup.add(chimney);
+
+        // Interior - Simple table
+        const tableTopGeometry = new THREE.BoxGeometry(1.5, 0.1, 1);
+        const tableMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.wood,
+            color: 0xa0826d,
+            roughness: 0.7
+        });
+        const tableTop = new THREE.Mesh(tableTopGeometry, tableMaterial);
+        tableTop.position.set(-1, 1.2, 0);
+        tableTop.castShadow = true;
+        tableTop.receiveShadow = true;
+        houseGroup.add(tableTop);
+
+        // Table legs
+        const legGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1, 8);
+        const legPositions = [
+            { x: -1.6, z: 0.4 },
+            { x: -1.6, z: -0.4 },
+            { x: -0.4, z: 0.4 },
+            { x: -0.4, z: -0.4 }
+        ];
+
+        legPositions.forEach(pos => {
+            const leg = new THREE.Mesh(legGeometry, tableMaterial);
+            leg.position.set(pos.x, 0.7, pos.z);
+            leg.castShadow = true;
+            houseGroup.add(leg);
+        });
+
+        // Chair
+        const chairSeatGeometry = new THREE.BoxGeometry(0.5, 0.1, 0.5);
+        const chairSeat = new THREE.Mesh(chairSeatGeometry, tableMaterial);
+        chairSeat.position.set(-1, 0.9, -0.8);
+        chairSeat.castShadow = true;
+        houseGroup.add(chairSeat);
+
+        const chairBackGeometry = new THREE.BoxGeometry(0.5, 0.6, 0.1);
+        const chairBack = new THREE.Mesh(chairBackGeometry, tableMaterial);
+        chairBack.position.set(-1, 1.25, -1.05);
+        chairBack.castShadow = true;
+        houseGroup.add(chairBack);
+
+        // Chair legs
+        const chairLegGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.8, 6);
+        const chairLegPositions = [
+            { x: -1.2, z: -0.6 },
+            { x: -1.2, z: -1.0 },
+            { x: -0.8, z: -0.6 },
+            { x: -0.8, z: -1.0 }
+        ];
+
+        chairLegPositions.forEach(pos => {
+            const leg = new THREE.Mesh(chairLegGeometry, tableMaterial);
+            leg.position.set(pos.x, 0.5, pos.z);
+            leg.castShadow = true;
+            houseGroup.add(leg);
+        });
+
+        // Bed
+        const bedFrameGeometry = new THREE.BoxGeometry(2, 0.3, 1.5);
+        const bedFrameMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.darkWood,
+            color: 0x654321,
+            roughness: 0.8
+        });
+        const bedFrame = new THREE.Mesh(bedFrameGeometry, bedFrameMaterial);
+        bedFrame.position.set(1.5, 0.65, -1);
+        bedFrame.castShadow = true;
+        houseGroup.add(bedFrame);
+
+        // Mattress
+        const mattressGeometry = new THREE.BoxGeometry(1.8, 0.3, 1.3);
+        const mattressMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff6b9d,
+            roughness: 0.9
+        });
+        const mattress = new THREE.Mesh(mattressGeometry, mattressMaterial);
+        mattress.position.set(1.5, 0.95, -1);
+        mattress.castShadow = true;
+        mattress.receiveShadow = true;
+        houseGroup.add(mattress);
+
+        // Pillow
+        const pillowGeometry = new THREE.BoxGeometry(0.5, 0.2, 0.4);
+        const pillowMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 0.7
+        });
+        const pillow = new THREE.Mesh(pillowGeometry, pillowMaterial);
+        pillow.position.set(1.5, 1.2, -1.4);
+        pillow.rotation.x = 0.2;
+        pillow.castShadow = true;
+        houseGroup.add(pillow);
+
+        // Small rug in front of door
+        const rugGeometry = new THREE.PlaneGeometry(1.2, 0.8);
+        const rugMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8b0000,
+            roughness: 1.0
+        });
+        const rug = new THREE.Mesh(rugGeometry, rugMaterial);
+        rug.rotation.x = -Math.PI / 2;
+        rug.position.set(0, 0.51, 1);
+        rug.receiveShadow = true;
+        houseGroup.add(rug);
+
+        // Lantern on table (decorative)
+        const lanternBaseGeometry = new THREE.CylinderGeometry(0.1, 0.12, 0.15, 8);
+        const lanternMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffd700,
+            metalness: 0.7,
+            roughness: 0.3
+        });
+        const lanternBase = new THREE.Mesh(lanternBaseGeometry, lanternMaterial);
+        lanternBase.position.set(-1, 1.35, 0);
+        lanternBase.castShadow = true;
+        houseGroup.add(lanternBase);
+
+        const lanternGlowGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+        const lanternGlowMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffaa00,
+            emissive: 0xffaa00,
+            emissiveIntensity: 0.5
+        });
+        const lanternGlow = new THREE.Mesh(lanternGlowGeometry, lanternGlowMaterial);
+        lanternGlow.position.set(-1, 1.45, 0);
+        houseGroup.add(lanternGlow);
+
+        // Position the house in the playground
+        houseGroup.position.set(-12, 0, 3);
+
+        // Add to interactive objects
+        houseGroup.userData = {
+            name: 'mini-house',
+            type: 'house',
+            interactive: true,
+            description: 'A cozy mini house with a bed, table, and warm lantern light. A perfect little home!'
+        };
+
+        this.scene.add(houseGroup);
+        this.interactiveObjects.push(houseGroup);
     }
 
     /**
