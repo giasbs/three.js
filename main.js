@@ -27,6 +27,22 @@ class PlaygroundApp {
 
         this.isTransitioning = false;
 
+        // Focus mode properties
+        this.focusMode = false;
+        this.savedCameraPosition = null;
+        this.savedCameraTarget = null;
+        this.cameraDistance = 5; // Distance from character in focus mode
+        this.cameraHeight = 3; // Height above character
+        this.cameraAngle = 0; // Angle around character
+
+        // WASD movement keys
+        this.keys = {
+            w: false,
+            a: false,
+            s: false,
+            d: false
+        };
+
         this.init();
         this.setupEventListeners();
         this.animate();
@@ -86,6 +102,10 @@ class PlaygroundApp {
 
         // Keyboard navigation
         document.addEventListener('keydown', this.onKeyDown.bind(this));
+        document.addEventListener('keyup', this.onKeyUp.bind(this));
+
+        // Mouse wheel for zoom in focus mode
+        window.addEventListener('wheel', this.onMouseWheel.bind(this));
     }
 
     /**
@@ -339,8 +359,13 @@ class PlaygroundApp {
                 break;
 
             case 'character':
-                // Toggle character pause/resume
-                this.toggleCharacterWalking(object);
+                // Toggle bubble visibility
+                this.toggleCharacterBubble();
+                break;
+
+            case 'bubble':
+                // Toggle focus mode
+                this.toggleFocusMode();
                 break;
         }
     }
@@ -514,17 +539,18 @@ class PlaygroundApp {
     }
 
     /**
-     * Toggle character walking (pause/resume)
+     * Toggle character bubble visibility
      */
-    toggleCharacterWalking(character) {
+    toggleCharacterBubble() {
         if (!this.playgroundScene.character) return;
 
-        // Toggle paused state
-        this.playgroundScene.character.paused = !this.playgroundScene.character.paused;
+        const char = this.playgroundScene.character;
+        char.bubbleVisible = !char.bubbleVisible;
+        char.bubble.visible = char.bubbleVisible;
 
-        // Visual feedback - quick scale pulse
+        // Quick scale animation for feedback
         const startScale = 1;
-        const targetScale = this.playgroundScene.character.paused ? 1.1 : 0.95;
+        const targetScale = 1.15;
         const startTime = performance.now();
         const duration = 200;
 
@@ -533,18 +559,82 @@ class PlaygroundApp {
             const progress = Math.min(elapsed / duration, 1);
 
             if (progress < 1) {
-                const scale = startScale + (targetScale - startScale) * Math.sin(progress * Math.PI / 2);
-                character.scale.set(scale, scale, scale);
+                const scale = startScale + (targetScale - startScale) * Math.sin(progress * Math.PI);
+                char.group.scale.set(scale, scale, scale);
                 requestAnimationFrame(animate);
             } else {
-                character.scale.set(1, 1, 1);
+                char.group.scale.set(1, 1, 1);
             }
         };
 
         animate();
 
-        // Console feedback
-        console.log(`Character ${this.playgroundScene.character.paused ? 'PAUSED' : 'RESUMED'}`);
+        console.log(`Bubble ${char.bubbleVisible ? 'SHOWN' : 'HIDDEN'}`);
+    }
+
+    /**
+     * Toggle focus mode
+     */
+    toggleFocusMode() {
+        if (!this.playgroundScene.character) return;
+
+        this.focusMode = !this.focusMode;
+        const char = this.playgroundScene.character;
+        const controls = this.playgroundScene.getControls();
+
+        if (this.focusMode) {
+            // Entering focus mode
+            char.focusMode = true;
+            char.paused = true; // Pause walking animation
+
+            // Save current camera state
+            this.savedCameraPosition = this.playgroundScene.getCamera().position.clone();
+            this.savedCameraTarget = controls.target.clone();
+
+            // Disable OrbitControls
+            controls.enabled = false;
+
+            // Reset camera angle
+            this.cameraAngle = 0;
+
+            console.log('FOCUS MODE ACTIVATED - Use WASD to move, mouse wheel to zoom');
+        } else {
+            // Exiting focus mode
+            char.focusMode = false;
+            char.paused = false; // Resume walking
+
+            // Restore camera position
+            if (this.savedCameraPosition && this.savedCameraTarget) {
+                const camera = this.playgroundScene.getCamera();
+                const duration = 1000;
+                const startPos = camera.position.clone();
+                const startTarget = controls.target.clone();
+                const startTime = performance.now();
+
+                const animate = () => {
+                    const elapsed = performance.now() - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const eased = this.easeInOutCubic(progress);
+
+                    camera.position.lerpVectors(startPos, this.savedCameraPosition, eased);
+                    controls.target.lerpVectors(startTarget, this.savedCameraTarget, eased);
+
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        // Re-enable OrbitControls after transition
+                        controls.enabled = true;
+                        controls.update();
+                    }
+                };
+
+                animate();
+            } else {
+                controls.enabled = true;
+            }
+
+            console.log('FOCUS MODE DEACTIVATED - Character resumed walking');
+        }
     }
 
     /**
@@ -826,20 +916,77 @@ class PlaygroundApp {
      * Handle keyboard input
      */
     onKeyDown(event) {
-        switch (event.key) {
-            case '1':
-                this.moveCamera('overview');
-                break;
-            case '2':
-                this.moveCamera('garden');
-                break;
-            case '3':
-                this.moveCamera('playArea');
-                break;
-            case '4':
-                this.moveCamera('relaxZone');
-                break;
+        // Handle WASD for focus mode
+        if (this.focusMode) {
+            switch (event.key.toLowerCase()) {
+                case 'w':
+                    this.keys.w = true;
+                    break;
+                case 'a':
+                    this.keys.a = true;
+                    break;
+                case 's':
+                    this.keys.s = true;
+                    break;
+                case 'd':
+                    this.keys.d = true;
+                    break;
+            }
+        } else {
+            // Normal camera shortcuts
+            switch (event.key) {
+                case '1':
+                    this.moveCamera('overview');
+                    break;
+                case '2':
+                    this.moveCamera('garden');
+                    break;
+                case '3':
+                    this.moveCamera('playArea');
+                    break;
+                case '4':
+                    this.moveCamera('relaxZone');
+                    break;
+            }
         }
+    }
+
+    /**
+     * Handle keyboard key release
+     */
+    onKeyUp(event) {
+        if (this.focusMode) {
+            switch (event.key.toLowerCase()) {
+                case 'w':
+                    this.keys.w = false;
+                    break;
+                case 'a':
+                    this.keys.a = false;
+                    break;
+                case 's':
+                    this.keys.s = false;
+                    break;
+                case 'd':
+                    this.keys.d = false;
+                    break;
+            }
+        }
+    }
+
+    /**
+     * Handle mouse wheel for zoom in focus mode
+     */
+    onMouseWheel(event) {
+        if (!this.focusMode) return;
+
+        event.preventDefault();
+
+        // Adjust camera distance
+        const zoomSpeed = 0.5;
+        this.cameraDistance += event.deltaY * 0.01 * zoomSpeed;
+
+        // Clamp distance between 2 and 15 units
+        this.cameraDistance = Math.max(2, Math.min(15, this.cameraDistance));
     }
 
     /**
@@ -857,6 +1004,81 @@ class PlaygroundApp {
     }
 
     /**
+     * Update focus mode (character movement and camera)
+     */
+    updateFocusMode() {
+        if (!this.focusMode || !this.playgroundScene.character) return;
+
+        const char = this.playgroundScene.character;
+        const moveSpeed = 0.15; // Units per frame
+
+        // Calculate movement direction based on camera angle
+        let moveX = 0;
+        let moveZ = 0;
+
+        if (this.keys.w) {
+            moveZ -= moveSpeed;
+        }
+        if (this.keys.s) {
+            moveZ += moveSpeed;
+        }
+        if (this.keys.a) {
+            moveX -= moveSpeed;
+        }
+        if (this.keys.d) {
+            moveX += moveSpeed;
+        }
+
+        // Apply movement to character
+        if (moveX !== 0 || moveZ !== 0) {
+            char.group.position.x += moveX;
+            char.group.position.z += moveZ;
+
+            // Keep character within bounds
+            const maxBounds = 30;
+            char.group.position.x = Math.max(-maxBounds, Math.min(maxBounds, char.group.position.x));
+            char.group.position.z = Math.max(-maxBounds, Math.min(maxBounds, char.group.position.z));
+
+            // Rotate character to face movement direction
+            if (moveX !== 0 || moveZ !== 0) {
+                const angle = Math.atan2(moveX, moveZ);
+                char.group.rotation.y = angle;
+            }
+
+            // Animate limbs while moving
+            const time = performance.now() * 0.01;
+            const limbSwing = Math.sin(time * 8) * 0.4;
+            char.leftArm.rotation.x = -limbSwing;
+            char.rightArm.rotation.x = limbSwing;
+            char.leftLeg.rotation.x = limbSwing;
+            char.rightLeg.rotation.x = -limbSwing;
+        }
+
+        // Update third-person camera position
+        const camera = this.playgroundScene.getCamera();
+        const charPos = char.group.position;
+
+        // Camera positioned behind and above character
+        const cameraOffset = new THREE.Vector3(
+            Math.sin(this.cameraAngle) * this.cameraDistance,
+            this.cameraHeight,
+            Math.cos(this.cameraAngle) * this.cameraDistance
+        );
+
+        const targetCameraPos = new THREE.Vector3(
+            charPos.x + cameraOffset.x,
+            charPos.y + cameraOffset.y,
+            charPos.z + cameraOffset.z
+        );
+
+        // Smooth camera follow
+        camera.position.lerp(targetCameraPos, 0.1);
+
+        // Look at character
+        camera.lookAt(new THREE.Vector3(charPos.x, charPos.y + 1, charPos.z));
+    }
+
+    /**
      * Main animation loop
      */
     animate() {
@@ -867,6 +1089,11 @@ class PlaygroundApp {
             this.hoveredObject.userData.hoverTime = (this.hoveredObject.userData.hoverTime || 0) + 0.05;
             this.hoveredObject.rotation.y = this.hoveredObject.userData.originalRotation +
                 Math.sin(this.hoveredObject.userData.hoverTime) * 0.05;
+        }
+
+        // Update focus mode if active
+        if (this.focusMode) {
+            this.updateFocusMode();
         }
 
         // Update the playground scene
