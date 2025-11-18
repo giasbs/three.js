@@ -597,6 +597,17 @@ class PlaygroundApp {
             // Reset camera angle
             this.cameraAngle = 0;
 
+            // Immediately position camera in third-person view behind character
+            const camera = this.playgroundScene.getCamera();
+            const charPos = char.group.position;
+
+            camera.position.set(
+                charPos.x + Math.sin(this.cameraAngle) * this.cameraDistance,
+                charPos.y + this.cameraHeight,
+                charPos.z + Math.cos(this.cameraAngle) * this.cameraDistance
+            );
+            camera.lookAt(new THREE.Vector3(charPos.x, charPos.y + 1, charPos.z));
+
             console.log('FOCUS MODE ACTIVATED - Use WASD to move, mouse wheel to zoom');
         } else {
             // Exiting focus mode
