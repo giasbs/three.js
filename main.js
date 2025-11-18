@@ -337,6 +337,11 @@ class PlaygroundApp {
                 // Animate board highlight
                 this.animateBoard(object);
                 break;
+
+            case 'character':
+                // Toggle character pause/resume
+                this.toggleCharacterWalking(object);
+                break;
         }
     }
 
@@ -506,6 +511,40 @@ class PlaygroundApp {
         // Console log for future functionality
         console.log(`Board clicked: ${board.userData.name}`);
         console.log('Canvas available for updates:', board.userData.canvas);
+    }
+
+    /**
+     * Toggle character walking (pause/resume)
+     */
+    toggleCharacterWalking(character) {
+        if (!this.playgroundScene.character) return;
+
+        // Toggle paused state
+        this.playgroundScene.character.paused = !this.playgroundScene.character.paused;
+
+        // Visual feedback - quick scale pulse
+        const startScale = 1;
+        const targetScale = this.playgroundScene.character.paused ? 1.1 : 0.95;
+        const startTime = performance.now();
+        const duration = 200;
+
+        const animate = () => {
+            const elapsed = performance.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            if (progress < 1) {
+                const scale = startScale + (targetScale - startScale) * Math.sin(progress * Math.PI / 2);
+                character.scale.set(scale, scale, scale);
+                requestAnimationFrame(animate);
+            } else {
+                character.scale.set(1, 1, 1);
+            }
+        };
+
+        animate();
+
+        // Console feedback
+        console.log(`Character ${this.playgroundScene.character.paused ? 'PAUSED' : 'RESUMED'}`);
     }
 
     /**

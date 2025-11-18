@@ -1574,6 +1574,14 @@ export class PlaygroundScene {
         // Starting position
         characterGroup.position.set(0, 0, 0);
 
+        // Make character interactive
+        characterGroup.userData = {
+            interactive: true,
+            type: 'character',
+            name: 'walking-man',
+            description: 'Click to pause/resume walking!'
+        };
+
         // Store references for animation
         this.character = {
             group: characterGroup,
@@ -1587,6 +1595,7 @@ export class PlaygroundScene {
             rightShoe: rightShoe,
             pathProgress: 0,
             walkSpeed: 0.3,
+            paused: false, // Toggle for pause/play
             // Walking path points (circular around playground)
             path: [
                 { x: 0, z: 15 },
@@ -1601,6 +1610,7 @@ export class PlaygroundScene {
         };
 
         this.scene.add(characterGroup);
+        this.interactiveObjects.push(characterGroup);
     }
 
     /**
@@ -1610,6 +1620,18 @@ export class PlaygroundScene {
         if (!this.character) return;
 
         const char = this.character;
+
+        // Skip updates if character is paused
+        if (char.paused) {
+            // Keep character in idle pose when paused
+            char.leftArm.rotation.x = 0;
+            char.rightArm.rotation.x = 0;
+            char.leftLeg.rotation.x = 0;
+            char.rightLeg.rotation.x = 0;
+            char.group.position.y = 0;
+            return;
+        }
+
         const path = char.path;
 
         // Update path progress
