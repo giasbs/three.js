@@ -152,25 +152,26 @@ class PlaygroundApp {
                 break;
 
             case 'swing':
-                // Highlight the seat
+                // Highlight the seat with warm glow
                 if (object.userData.swingSeat) {
-                    object.userData.swingSeat.material.emissive.setHex(0x442211);
+                    object.userData.swingSeat.material.emissive.setHex(0xff6347);
+                    object.userData.swingSeat.material.emissiveIntensity = 0.3;
                 }
                 break;
 
             case 'slide':
-                // Glow effect
+                // Enhanced glow effect with rim lighting
                 if (object.userData.slideMaterial) {
-                    object.userData.slideMaterial.emissive.setHex(0x661144);
-                    object.userData.slideMaterial.emissiveIntensity = 0.3;
+                    object.userData.slideMaterial.emissive.setHex(0xff1493);
+                    object.userData.slideMaterial.emissiveIntensity = 0.4;
                 }
                 break;
 
             case 'lamp':
-                // Pulse slightly
+                // Enhanced pulse effect
                 if (object.userData.lampMaterial) {
-                    object.userData.lampMaterial.emissive.setHex(0x332200);
-                    object.userData.lampMaterial.emissiveIntensity = 0.2;
+                    object.userData.lampMaterial.emissive.setHex(0xffa500);
+                    object.userData.lampMaterial.emissiveIntensity = 0.4;
                 }
                 break;
 
@@ -213,6 +214,7 @@ class PlaygroundApp {
                 // Remove highlight
                 if (object.userData.swingSeat) {
                     object.userData.swingSeat.material.emissive.setHex(0x000000);
+                    object.userData.swingSeat.material.emissiveIntensity = 0;
                 }
                 break;
 
