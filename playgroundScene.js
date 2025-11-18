@@ -907,8 +907,13 @@ export class PlaygroundScene {
      */
     createRelaxZone() {
         // Colorful benches
-        this.createBench(10, 0, 18, 0xff6b6b);
-        this.createBench(-10, 0, 18, 0x48dbfb);
+        this.createBench(10, 0, 18, 0xff6b6b);     // Red bench
+        this.createBench(-10, 0, 18, 0x48dbfb);    // Blue bench
+        this.createBench(0, 0, -25, 0xfeca57);     // Yellow bench near fountain
+        this.createBench(-20, 0, 12, 0xff9ff3);    // Pink bench near house
+        this.createBench(22, 0, -22, 0x1dd1a1);    // Green bench near gazebo
+        this.createBench(8, 0, -15, 0x8854d0);     // Purple bench near sandbox
+        this.createBench(-18, 0, 0, 0xf39c12);     // Orange bench in garden
 
         // Cozy house
         this.createCozyHouse(-28, 0, 8);
