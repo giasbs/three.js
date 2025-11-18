@@ -313,6 +313,11 @@ class PlaygroundApp {
                 // Make flower dance
                 this.danceFlower(object);
                 break;
+
+            case 'ball':
+                // Kick the ball
+                this.kickBall(object, point);
+                break;
         }
     }
 
@@ -406,6 +411,25 @@ class PlaygroundApp {
         };
 
         animate();
+    }
+
+    /**
+     * Kick a ball in the direction away from camera
+     */
+    kickBall(ball, clickPoint) {
+        // Calculate kick direction from camera to ball
+        const ballPosition = ball.position.clone();
+        const cameraPosition = this.playgroundScene.getCamera().position.clone();
+        cameraPosition.y = 0; // Project to ground level
+        ballPosition.y = 0;
+
+        // Direction from camera to ball (normalized)
+        const kickDirection = new THREE.Vector3()
+            .subVectors(ballPosition, cameraPosition)
+            .normalize();
+
+        // Call the playground scene's kickBall method
+        this.playgroundScene.kickBall(ball, kickDirection);
     }
 
     /**

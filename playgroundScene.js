@@ -30,6 +30,9 @@ export class PlaygroundScene {
         this.clouds = [];
         this.birds = [];
 
+        // Ball physics system
+        this.balls = [];
+
         // Texture system
         this.textures = {};
         this.createProceduralTextures();
@@ -502,6 +505,9 @@ export class PlaygroundScene {
 
         // Create mini house
         this.createMiniHouse();
+
+        // Create interactive balls
+        this.createBalls();
     }
 
     /**
@@ -2048,6 +2054,215 @@ export class PlaygroundScene {
     }
 
     /**
+     * Create interactive kickable balls
+     */
+    createBalls() {
+        // Create soccer ball texture procedurally
+        const ballTexture = this.createSoccerBallTexture();
+
+        // Ball 1 - Classic soccer ball near the playground area
+        const ball1Geometry = new THREE.SphereGeometry(0.4, 32, 32);
+        const ball1Material = new THREE.MeshStandardMaterial({
+            map: ballTexture,
+            roughness: 0.6,
+            metalness: 0.1,
+            color: 0xffffff
+        });
+        const ball1 = new THREE.Mesh(ball1Geometry, ball1Material);
+        ball1.position.set(5, 0.4, 8);
+        ball1.castShadow = true;
+        ball1.receiveShadow = true;
+        ball1.userData = {
+            name: 'soccer-ball-1',
+            type: 'ball',
+            interactive: true,
+            description: 'A colorful soccer ball - click to kick it!'
+        };
+
+        // Physics properties
+        const ball1Physics = {
+            mesh: ball1,
+            velocity: new THREE.Vector3(0, 0, 0),
+            friction: 0.92,
+            gravity: -9.8,
+            bounceY: 0,
+            radius: 0.4,
+            mass: 0.45 // Standard soccer ball mass in kg
+        };
+        this.balls.push(ball1Physics);
+        this.scene.add(ball1);
+        this.interactiveObjects.push(ball1);
+
+        // Ball 2 - Colorful beach ball near the sandbox
+        const ball2Geometry = new THREE.SphereGeometry(0.35, 32, 32);
+        const ball2Material = new THREE.MeshStandardMaterial({
+            color: 0xff6b6b,
+            roughness: 0.4,
+            metalness: 0.05
+        });
+        const ball2 = new THREE.Mesh(ball2Geometry, ball2Material);
+        ball2.position.set(-5, 0.35, -8);
+        ball2.castShadow = true;
+        ball2.receiveShadow = true;
+        ball2.userData = {
+            name: 'beach-ball',
+            type: 'ball',
+            interactive: true,
+            description: 'A bouncy beach ball - give it a kick!'
+        };
+
+        // Physics properties (lighter than soccer ball)
+        const ball2Physics = {
+            mesh: ball2,
+            velocity: new THREE.Vector3(0, 0, 0),
+            friction: 0.88,
+            gravity: -9.8,
+            bounceY: 0,
+            radius: 0.35,
+            mass: 0.15 // Beach balls are lighter
+        };
+        this.balls.push(ball2Physics);
+        this.scene.add(ball2);
+        this.interactiveObjects.push(ball2);
+    }
+
+    /**
+     * Create a simple soccer ball texture pattern
+     */
+    createSoccerBallTexture() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // White base
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, size, size);
+
+        // Black pentagon and hexagon pattern (simplified)
+        ctx.fillStyle = '#000000';
+
+        // Center pentagon
+        this.drawPentagon(ctx, size / 2, size / 2, 60);
+
+        // Surrounding hexagons
+        const positions = [
+            [size / 2, size / 2 - 100],
+            [size / 2 + 87, size / 2 - 50],
+            [size / 2 + 87, size / 2 + 50],
+            [size / 2, size / 2 + 100],
+            [size / 2 - 87, size / 2 + 50],
+            [size / 2 - 87, size / 2 - 50]
+        ];
+
+        positions.forEach(([x, y]) => {
+            this.drawPentagon(ctx, x, y, 40);
+        });
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    }
+
+    /**
+     * Helper to draw a pentagon on canvas
+     */
+    drawPentagon(ctx, x, y, radius) {
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+            const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+            const px = x + radius * Math.cos(angle);
+            const py = y + radius * Math.sin(angle);
+            if (i === 0) {
+                ctx.moveTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
+        }
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    /**
+     * Kick a ball with physics
+     */
+    kickBall(ball, kickDirection) {
+        // Find the ball physics object
+        const ballPhysics = this.balls.find(b => b.mesh === ball);
+        if (!ballPhysics) return;
+
+        // Apply kick force based on direction and mass
+        const kickStrength = 8.0;
+        ballPhysics.velocity.set(
+            kickDirection.x * kickStrength,
+            2.0, // Small upward component
+            kickDirection.z * kickStrength
+        );
+    }
+
+    /**
+     * Update ball physics
+     */
+    updateBalls(deltaTime) {
+        this.balls.forEach(ball => {
+            // Skip if ball is stationary
+            if (ball.velocity.lengthSq() < 0.001) {
+                ball.velocity.set(0, 0, 0);
+                // Ensure ball stays on ground
+                if (ball.mesh.position.y <= ball.radius) {
+                    ball.mesh.position.y = ball.radius;
+                }
+                return;
+            }
+
+            // Apply gravity
+            ball.velocity.y += ball.gravity * deltaTime;
+
+            // Update position
+            ball.mesh.position.x += ball.velocity.x * deltaTime;
+            ball.mesh.position.y += ball.velocity.y * deltaTime;
+            ball.mesh.position.z += ball.velocity.z * deltaTime;
+
+            // Ground collision
+            if (ball.mesh.position.y <= ball.radius) {
+                ball.mesh.position.y = ball.radius;
+                ball.velocity.y *= -0.5; // Bounce with damping
+
+                // Stop small bounces
+                if (Math.abs(ball.velocity.y) < 0.3) {
+                    ball.velocity.y = 0;
+                }
+            }
+
+            // Apply friction on ground
+            if (ball.mesh.position.y <= ball.radius + 0.01) {
+                ball.velocity.x *= ball.friction;
+                ball.velocity.z *= ball.friction;
+            }
+
+            // Boundary constraints (keep ball in playground)
+            const maxDistance = 45;
+            if (Math.abs(ball.mesh.position.x) > maxDistance) {
+                ball.mesh.position.x = Math.sign(ball.mesh.position.x) * maxDistance;
+                ball.velocity.x *= -0.5;
+            }
+            if (Math.abs(ball.mesh.position.z) > maxDistance) {
+                ball.mesh.position.z = Math.sign(ball.mesh.position.z) * maxDistance;
+                ball.velocity.z *= -0.5;
+            }
+
+            // Rotate ball based on movement
+            const speed = new THREE.Vector2(ball.velocity.x, ball.velocity.z).length();
+            if (speed > 0.1) {
+                const axis = new THREE.Vector3(-ball.velocity.z, 0, ball.velocity.x).normalize();
+                ball.mesh.rotateOnWorldAxis(axis, speed * deltaTime * 2);
+            }
+        });
+    }
+
+    /**
      * Update method called every frame
      */
     update() {
@@ -2056,6 +2271,7 @@ export class PlaygroundScene {
 
         // Update shader uniforms for animations
         const elapsedTime = this.clock.getElapsedTime();
+        const deltaTime = this.clock.getDelta();
 
         // Update wind system
         this.updateWind(elapsedTime);
@@ -2065,6 +2281,9 @@ export class PlaygroundScene {
         this.updateButterflies(elapsedTime);
         this.updateBirds(elapsedTime);
         this.updateLeavesPhysics(elapsedTime);
+
+        // Update ball physics
+        this.updateBalls(deltaTime);
     }
 
     /**
