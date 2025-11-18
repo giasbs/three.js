@@ -30,7 +30,413 @@ export class PlaygroundScene {
         this.clouds = [];
         this.birds = [];
 
+        // Texture system
+        this.textures = {};
+        this.createProceduralTextures();
+
         this.init();
+    }
+
+    /**
+     * Create procedural textures for realistic materials
+     */
+    createProceduralTextures() {
+        // Grass texture with detail
+        this.textures.grass = this.createGrassTexture();
+        this.textures.grassNormal = this.createGrassNormalMap();
+
+        // Wood textures
+        this.textures.wood = this.createWoodTexture();
+        this.textures.woodNormal = this.createWoodNormalMap();
+        this.textures.darkWood = this.createWoodTexture(true);
+
+        // Stone/Rock texture
+        this.textures.stone = this.createStoneTexture();
+        this.textures.stoneNormal = this.createStoneNormalMap();
+
+        // Sand texture
+        this.textures.sand = this.createSandTexture();
+        this.textures.sandNormal = this.createSandNormalMap();
+
+        // Concrete/Path texture
+        this.textures.concrete = this.createConcreteTexture();
+        this.textures.concreteNormal = this.createConcreteNormalMap();
+    }
+
+    /**
+     * Create realistic grass texture
+     */
+    createGrassTexture() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Base grass color with variation
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                const noise = Math.random();
+                const r = Math.floor(75 + noise * 30);
+                const g = Math.floor(140 + noise * 40);
+                const b = Math.floor(70 + noise * 20);
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(i, j, 1, 1);
+            }
+        }
+
+        // Add grass blade patterns
+        ctx.strokeStyle = 'rgba(60, 120, 60, 0.3)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 200; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const length = 5 + Math.random() * 10;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + (Math.random() - 0.5) * 3, y - length);
+            ctx.stroke();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(20, 20);
+        return texture;
+    }
+
+    /**
+     * Create grass normal map for depth
+     */
+    createGrassNormalMap() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Blue base (flat normal)
+        ctx.fillStyle = 'rgb(128, 128, 255)';
+        ctx.fillRect(0, 0, size, size);
+
+        // Add bumps
+        for (let i = 0; i < 1000; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const radius = 2 + Math.random() * 3;
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+            gradient.addColorStop(0, 'rgb(128, 128, 255)');
+            gradient.addColorStop(1, 'rgb(128, 140, 240)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(20, 20);
+        return texture;
+    }
+
+    /**
+     * Create wood texture with grain
+     */
+    createWoodTexture(dark = false) {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Base wood color
+        const baseR = dark ? 80 : 139;
+        const baseG = dark ? 50 : 90;
+        const baseB = dark ? 30 : 43;
+
+        // Draw wood grain
+        for (let y = 0; y < size; y++) {
+            const grainVariation = Math.sin(y * 0.1 + Math.random() * 0.5) * 20;
+            for (let x = 0; x < size; x++) {
+                const noise = (Math.random() - 0.5) * 15;
+                const r = baseR + grainVariation + noise;
+                const g = baseG + grainVariation * 0.7 + noise;
+                const b = baseB + grainVariation * 0.5 + noise;
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(x, y, 1, 1);
+            }
+        }
+
+        // Add wood rings
+        ctx.strokeStyle = `rgba(${baseR - 30}, ${baseG - 30}, ${baseB - 20}, 0.3)`;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 8; i++) {
+            const y = (i / 8) * size + Math.random() * 40;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            for (let x = 0; x < size; x += 10) {
+                ctx.lineTo(x, y + Math.sin(x * 0.05) * 5);
+            }
+            ctx.stroke();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    }
+
+    /**
+     * Create wood normal map
+     */
+    createWoodNormalMap() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = 'rgb(128, 128, 255)';
+        ctx.fillRect(0, 0, size, size);
+
+        // Add grain bumps
+        for (let y = 0; y < size; y += 2) {
+            const variation = Math.sin(y * 0.1) * 10;
+            ctx.strokeStyle = `rgba(128, ${128 + variation}, 240, 0.5)`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(size, y);
+            ctx.stroke();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    }
+
+    /**
+     * Create stone texture
+     */
+    createStoneTexture() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Base stone color with noise
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                const noise = Math.random() * 40;
+                const r = 100 + noise;
+                const g = 100 + noise;
+                const b = 100 + noise;
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(i, j, 1, 1);
+            }
+        }
+
+        // Add cracks and details
+        ctx.strokeStyle = 'rgba(60, 60, 60, 0.4)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 30; i++) {
+            ctx.beginPath();
+            let x = Math.random() * size;
+            let y = Math.random() * size;
+            ctx.moveTo(x, y);
+            for (let j = 0; j < 5; j++) {
+                x += (Math.random() - 0.5) * 40;
+                y += (Math.random() - 0.5) * 40;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    }
+
+    /**
+     * Create stone normal map
+     */
+    createStoneNormalMap() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = 'rgb(128, 128, 255)';
+        ctx.fillRect(0, 0, size, size);
+
+        // Add bumpy surface
+        for (let i = 0; i < 500; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const radius = 5 + Math.random() * 15;
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+            gradient.addColorStop(0, 'rgb(150, 150, 255)');
+            gradient.addColorStop(0.5, 'rgb(128, 128, 255)');
+            gradient.addColorStop(1, 'rgb(100, 100, 240)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    }
+
+    /**
+     * Create sand texture
+     */
+    createSandTexture() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Sandy beige color with grain
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                const noise = Math.random() * 30;
+                const r = 220 + noise;
+                const g = 190 + noise;
+                const b = 130 + noise;
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(i, j, 1, 1);
+            }
+        }
+
+        // Add sand grain clusters
+        for (let i = 0; i < 200; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const radius = 1 + Math.random() * 2;
+            ctx.fillStyle = `rgba(200, 170, 110, ${Math.random() * 0.3})`;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    }
+
+    /**
+     * Create sand normal map
+     */
+    createSandNormalMap() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = 'rgb(128, 128, 255)';
+        ctx.fillRect(0, 0, size, size);
+
+        // Subtle granular bumps
+        for (let i = 0; i < 2000; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const variation = Math.random() * 20;
+            ctx.fillStyle = `rgb(${128 + variation}, ${128 + variation}, ${240 + variation})`;
+            ctx.fillRect(x, y, 1, 1);
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    }
+
+    /**
+     * Create concrete texture
+     */
+    createConcreteTexture() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Concrete gray with noise
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                const noise = (Math.random() - 0.5) * 40;
+                const val = 180 + noise;
+                ctx.fillStyle = `rgb(${val},${val},${val})`;
+                ctx.fillRect(i, j, 1, 1);
+            }
+        }
+
+        // Add cracks
+        ctx.strokeStyle = 'rgba(120, 120, 120, 0.6)';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 15; i++) {
+            ctx.beginPath();
+            let x = Math.random() * size;
+            let y = Math.random() * size;
+            ctx.moveTo(x, y);
+            for (let j = 0; j < 3; j++) {
+                x += (Math.random() - 0.5) * 100;
+                y += (Math.random() - 0.5) * 100;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        // Add spots
+        for (let i = 0; i < 50; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const radius = 2 + Math.random() * 5;
+            ctx.fillStyle = `rgba(${140 + Math.random() * 40}, ${140 + Math.random() * 40}, ${140 + Math.random() * 40}, 0.5)`;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    }
+
+    /**
+     * Create concrete normal map
+     */
+    createConcreteNormalMap() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = 'rgb(128, 128, 255)';
+        ctx.fillRect(0, 0, size, size);
+
+        // Add rough surface detail
+        for (let i = 0; i < 800; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const radius = 2 + Math.random() * 5;
+            const variation = (Math.random() - 0.5) * 30;
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+            gradient.addColorStop(0, `rgb(${128 + variation}, ${128 + variation}, ${255 - Math.abs(variation)})`);
+            gradient.addColorStop(1, 'rgb(128, 128, 255)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        return texture;
     }
 
     /**
@@ -139,73 +545,19 @@ export class PlaygroundScene {
     }
 
     /**
-     * Create the ground plane with animated grass shader
+     * Create the ground plane with realistic grass texture
      */
     createGround() {
         const groundGeometry = new THREE.CircleGeometry(50, 64);
 
-        // Custom grass shader with animated wind
-        const groundMaterial = new THREE.ShaderMaterial({
-            uniforms: {
-                uTime: { value: 0 },
-                uBaseColor: { value: new THREE.Color(0x5fb358) },
-                uDarkColor: { value: new THREE.Color(0x4a9944) },
-                uLightColor: { value: new THREE.Color(0x6bcf7f) },
-                uSunDirection: { value: new THREE.Vector3(30, 40, 20).normalize() }
-            },
-            vertexShader: `
-                varying vec2 vUv;
-                varying vec3 vNormal;
-                varying vec3 vPosition;
-
-                void main() {
-                    vUv = uv;
-                    vNormal = normalize(normalMatrix * normal);
-                    vPosition = position;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                uniform float uTime;
-                uniform vec3 uBaseColor;
-                uniform vec3 uDarkColor;
-                uniform vec3 uLightColor;
-                uniform vec3 uSunDirection;
-
-                varying vec2 vUv;
-                varying vec3 vNormal;
-                varying vec3 vPosition;
-
-                // Simple noise function
-                float noise(vec2 p) {
-                    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
-                }
-
-                void main() {
-                    // Distance from center for gradient
-                    float distFromCenter = length(vPosition.xy) / 50.0;
-
-                    // Animated grass variation
-                    float grassNoise = noise(vUv * 100.0 + uTime * 0.1);
-                    float windWave = sin(vPosition.x * 0.5 + uTime) * cos(vPosition.z * 0.5 + uTime * 0.8) * 0.1;
-
-                    // Mix colors based on noise and distance
-                    vec3 color = mix(uDarkColor, uLightColor, grassNoise * 0.5 + 0.5);
-                    color = mix(color, uBaseColor, 0.4);
-
-                    // Add subtle wind animation to color
-                    color += vec3(windWave * 0.05);
-
-                    // Darken edges slightly
-                    color = mix(color, uDarkColor, smoothstep(0.7, 1.0, distFromCenter) * 0.3);
-
-                    // Simple lighting
-                    float lightIntensity = dot(vNormal, normalize(uSunDirection)) * 0.5 + 0.5;
-                    color *= lightIntensity * 0.5 + 0.5;
-
-                    gl_FragColor = vec4(color, 1.0);
-                }
-            `
+        // Realistic grass material with texture and normal map
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.grass,
+            normalMap: this.textures.grassNormal,
+            normalScale: new THREE.Vector2(0.5, 0.5),
+            roughness: 0.9,
+            metalness: 0.0,
+            color: 0x5fb358
         });
 
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
@@ -214,7 +566,7 @@ export class PlaygroundScene {
         ground.userData = { name: 'ground', type: 'environment', material: groundMaterial };
         this.scene.add(ground);
 
-        // Store for animation updates
+        // Store for reference
         this.groundMaterial = groundMaterial;
 
         // Add some grass tufts for visual interest
@@ -280,11 +632,15 @@ export class PlaygroundScene {
     createTree(x, z) {
         const treeGroup = new THREE.Group();
 
-        // Trunk
-        const trunkGeometry = new THREE.CylinderGeometry(0.4, 0.5, 3, 8);
+        // Trunk with realistic wood texture
+        const trunkGeometry = new THREE.CylinderGeometry(0.4, 0.5, 3, 16);
         const trunkMaterial = new THREE.MeshStandardMaterial({
-            color: 0x8b4513,
-            roughness: 0.9
+            map: this.textures.darkWood,
+            normalMap: this.textures.woodNormal,
+            normalScale: new THREE.Vector2(0.3, 0.3),
+            roughness: 0.95,
+            metalness: 0.0,
+            color: 0x8b4513
         });
         const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
         trunk.position.y = 1.5;
@@ -445,11 +801,15 @@ export class PlaygroundScene {
     createSandbox() {
         const sandboxGroup = new THREE.Group();
 
-        // Sandbox base
+        // Sandbox base with realistic sand texture
         const boxGeometry = new THREE.BoxGeometry(4, 0.3, 4);
         const boxMaterial = new THREE.MeshStandardMaterial({
-            color: 0xf4a460, // Sandy brown
-            roughness: 0.9
+            map: this.textures.sand,
+            normalMap: this.textures.sandNormal,
+            normalScale: new THREE.Vector2(0.2, 0.2),
+            roughness: 0.95,
+            metalness: 0.0,
+            color: 0xf4a460
         });
         const box = new THREE.Mesh(boxGeometry, boxMaterial);
         box.position.y = 0.15;
@@ -457,11 +817,15 @@ export class PlaygroundScene {
         box.receiveShadow = true;
         sandboxGroup.add(box);
 
-        // Sandbox borders
+        // Sandbox borders with wood texture
         const borderGeometry = new THREE.BoxGeometry(4.4, 0.2, 0.3);
         const borderMaterial = new THREE.MeshStandardMaterial({
-            color: 0x8b4513,
-            roughness: 0.8
+            map: this.textures.wood,
+            normalMap: this.textures.woodNormal,
+            normalScale: new THREE.Vector2(0.3, 0.3),
+            roughness: 0.85,
+            metalness: 0.0,
+            color: 0x8b4513
         });
 
         const border1 = new THREE.Mesh(borderGeometry, borderMaterial);
@@ -503,12 +867,13 @@ export class PlaygroundScene {
     createSwingSet() {
         const swingGroup = new THREE.Group();
 
-        // Frame posts
-        const postGeometry = new THREE.CylinderGeometry(0.15, 0.15, 4, 8);
+        // Frame posts with realistic metal material
+        const postGeometry = new THREE.CylinderGeometry(0.15, 0.15, 4, 16);
         const postMaterial = new THREE.MeshStandardMaterial({
-            color: 0xc0c0c0,
-            metalness: 0.6,
-            roughness: 0.4
+            color: 0xd0d0d0,
+            metalness: 0.85,
+            roughness: 0.25,
+            envMapIntensity: 1.0
         });
 
         const post1 = new THREE.Mesh(postGeometry, postMaterial);
@@ -684,11 +1049,15 @@ export class PlaygroundScene {
     createBench() {
         const benchGroup = new THREE.Group();
 
-        // Seat
+        // Seat with realistic wood texture
         const seatGeometry = new THREE.BoxGeometry(2, 0.2, 0.8);
         const woodMaterial = new THREE.MeshStandardMaterial({
-            color: 0xd2691e,
-            roughness: 0.8
+            map: this.textures.wood,
+            normalMap: this.textures.woodNormal,
+            normalScale: new THREE.Vector2(0.4, 0.4),
+            roughness: 0.85,
+            metalness: 0.0,
+            color: 0xd2691e
         });
         const seat = new THREE.Mesh(seatGeometry, woodMaterial);
         seat.position.y = 0.5;
@@ -702,12 +1071,12 @@ export class PlaygroundScene {
         backrest.castShadow = true;
         benchGroup.add(backrest);
 
-        // Legs
-        const legGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.5, 8);
+        // Legs with realistic metal material
+        const legGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.5, 12);
         const legMaterial = new THREE.MeshStandardMaterial({
             color: 0x696969,
-            metalness: 0.5,
-            roughness: 0.5
+            metalness: 0.8,
+            roughness: 0.3
         });
 
         const positions = [
@@ -733,8 +1102,12 @@ export class PlaygroundScene {
      */
     createPath() {
         const pathMaterial = new THREE.MeshStandardMaterial({
-            color: 0xd3d3d3, // Light gray
-            roughness: 0.9
+            map: this.textures.concrete,
+            normalMap: this.textures.concreteNormal,
+            normalScale: new THREE.Vector2(0.3, 0.3),
+            roughness: 0.85,
+            metalness: 0.0,
+            color: 0xd3d3d3
         });
 
         // Create path segments in a winding pattern
@@ -787,12 +1160,13 @@ export class PlaygroundScene {
     createLamp(x, z) {
         const lampGroup = new THREE.Group();
 
-        // Pole
-        const poleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 3, 8);
+        // Pole with realistic metal material
+        const poleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 3, 16);
         const poleMaterial = new THREE.MeshStandardMaterial({
             color: 0x2f4f4f,
-            metalness: 0.7,
-            roughness: 0.3
+            metalness: 0.85,
+            roughness: 0.25,
+            envMapIntensity: 1.0
         });
         const pole = new THREE.Mesh(poleGeometry, poleMaterial);
         pole.position.y = 1.5;
@@ -1015,11 +1389,15 @@ export class PlaygroundScene {
         rockPositions.forEach((pos, index) => {
             const rockGroup = new THREE.Group();
 
-            // Create irregular rock shape
+            // Create irregular rock shape with realistic stone texture
             const rockGeometry = new THREE.DodecahedronGeometry(0.3 + Math.random() * 0.4, 0);
             const rockMaterial = new THREE.MeshStandardMaterial({
-                color: 0x808080,
+                map: this.textures.stone,
+                normalMap: this.textures.stoneNormal,
+                normalScale: new THREE.Vector2(0.5, 0.5),
                 roughness: 0.9,
+                metalness: 0.0,
+                color: 0x808080,
                 flatShading: true
             });
 
@@ -1340,11 +1718,6 @@ export class PlaygroundScene {
 
         // Update shader uniforms for animations
         const elapsedTime = this.clock.getElapsedTime();
-
-        // Update grass shader time
-        if (this.groundMaterial) {
-            this.groundMaterial.uniforms.uTime.value = elapsedTime;
-        }
 
         // Update wind system
         this.updateWind(elapsedTime);
