@@ -332,6 +332,11 @@ class PlaygroundApp {
                 // Make windows glow
                 this.animateHouse(object);
                 break;
+
+            case 'board':
+                // Animate board highlight
+                this.animateBoard(object);
+                break;
         }
     }
 
@@ -457,6 +462,50 @@ class PlaygroundApp {
         };
 
         animate();
+    }
+
+    /**
+     * Animate board highlight when clicked
+     */
+    animateBoard(board) {
+        // Find the main board surface (the mesh with the canvas texture)
+        const boardSurface = board.children.find(child =>
+            child.geometry && child.geometry.type === 'BoxGeometry' &&
+            child.material.map && child.userData.type !== 'frame'
+        );
+
+        if (!boardSurface) return;
+
+        const startTime = performance.now();
+        const duration = 1500;
+        const originalEmissive = boardSurface.material.emissive ? boardSurface.material.emissive.clone() : new THREE.Color(0x000000);
+        const originalIntensity = boardSurface.material.emissiveIntensity || 0;
+
+        const animate = () => {
+            const elapsed = performance.now() - startTime;
+            const progress = elapsed / duration;
+
+            if (progress < 1) {
+                // Pulsing highlight effect
+                const pulse = Math.sin(progress * Math.PI * 4) * 0.5 + 0.5;
+
+                // Set emissive to white with pulsing intensity
+                boardSurface.material.emissive = new THREE.Color(0xffffff);
+                boardSurface.material.emissiveIntensity = pulse * 0.3;
+
+                requestAnimationFrame(animate);
+            } else {
+                // Reset to original
+                boardSurface.material.emissive = originalEmissive;
+                boardSurface.material.emissiveIntensity = originalIntensity;
+            }
+        };
+
+        animate();
+
+        // Console log for future functionality
+        console.log(`Board clicked: ${board.userData.name}`);
+        console.log('Canvas available for updates:', board.userData.canvas);
     }
 
     /**

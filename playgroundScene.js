@@ -330,6 +330,7 @@ export class PlaygroundScene {
         this.createRelaxZone();
         this.createExplorationZone();
         this.createAtmosphere();
+        this.createBoards();
     }
 
     /**
@@ -1448,6 +1449,349 @@ export class PlaygroundScene {
 
             this.scene.add(light);
         }
+    }
+
+    /**
+     * Create billboard/whiteboard structures for project overviews
+     */
+    createBoards() {
+        // Board 1 - Billboard near play area
+        this.createBillboard(20, 0, 15, 'Project Board 1');
+
+        // Board 2 - Whiteboard near garden
+        this.createWhiteboard(-15, 0, -8, 'Project Board 2');
+    }
+
+    /**
+     * Create a billboard structure
+     */
+    createBillboard(x, y, z, title) {
+        const boardGroup = new THREE.Group();
+
+        // Support posts
+        const postMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8B4513,
+            roughness: 0.8
+        });
+
+        const leftPost = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.15, 0.15, 5, 8),
+            postMaterial
+        );
+        leftPost.position.set(-2.5, 2.5, 0);
+        leftPost.castShadow = true;
+        boardGroup.add(leftPost);
+
+        const rightPost = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.15, 0.15, 5, 8),
+            postMaterial
+        );
+        rightPost.position.set(2.5, 2.5, 0);
+        rightPost.castShadow = true;
+        boardGroup.add(rightPost);
+
+        // Create high-resolution canvas for board
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 768;
+        const ctx = canvas.getContext('2d');
+
+        // White background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Border
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 8;
+        ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+        // Title
+        ctx.fillStyle = '#2c3e50';
+        ctx.font = 'bold 60px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(title, canvas.width / 2, 100);
+
+        // Placeholder content
+        ctx.font = '40px Arial';
+        ctx.fillStyle = '#555555';
+        ctx.fillText('Project Overview', canvas.width / 2, 200);
+
+        ctx.font = '30px Arial';
+        ctx.fillStyle = '#777777';
+        ctx.fillText('Coming Soon...', canvas.width / 2, 400);
+
+        // Small decorative elements
+        ctx.fillStyle = '#3498db';
+        ctx.fillRect(100, 500, 200, 10);
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillRect(350, 500, 200, 10);
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillRect(600, 500, 200, 10);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+
+        // Board surface
+        const boardMaterial = new THREE.MeshStandardMaterial({
+            map: texture,
+            roughness: 0.3,
+            metalness: 0.1
+        });
+
+        const board = new THREE.Mesh(
+            new THREE.BoxGeometry(5, 3.5, 0.1),
+            boardMaterial
+        );
+        board.position.set(0, 3.5, 0);
+        board.castShadow = true;
+        board.receiveShadow = true;
+        boardGroup.add(board);
+
+        // Frame
+        const frameMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2c3e50,
+            roughness: 0.5,
+            metalness: 0.3
+        });
+
+        // Frame edges
+        const frameTop = new THREE.Mesh(
+            new THREE.BoxGeometry(5.2, 0.15, 0.15),
+            frameMaterial
+        );
+        frameTop.position.set(0, 5.35, 0);
+        frameTop.castShadow = true;
+        boardGroup.add(frameTop);
+
+        const frameBottom = new THREE.Mesh(
+            new THREE.BoxGeometry(5.2, 0.15, 0.15),
+            frameMaterial
+        );
+        frameBottom.position.set(0, 1.65, 0);
+        frameBottom.castShadow = true;
+        boardGroup.add(frameBottom);
+
+        const frameLeft = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 3.7, 0.15),
+            frameMaterial
+        );
+        frameLeft.position.set(-2.6, 3.5, 0);
+        frameLeft.castShadow = true;
+        boardGroup.add(frameLeft);
+
+        const frameRight = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 3.7, 0.15),
+            frameMaterial
+        );
+        frameRight.position.set(2.6, 3.5, 0);
+        frameRight.castShadow = true;
+        boardGroup.add(frameRight);
+
+        boardGroup.position.set(x, y, z);
+        boardGroup.userData = {
+            interactive: true,
+            type: 'board',
+            name: title,
+            description: 'Click to view project details!',
+            canvas: canvas,
+            texture: texture
+        };
+
+        this.scene.add(boardGroup);
+        this.interactiveObjects.push(boardGroup);
+    }
+
+    /**
+     * Create a whiteboard structure
+     */
+    createWhiteboard(x, y, z, title) {
+        const boardGroup = new THREE.Group();
+
+        // Stand/Easel structure
+        const standMaterial = new THREE.MeshStandardMaterial({
+            color: 0x34495e,
+            roughness: 0.6,
+            metalness: 0.4
+        });
+
+        // Main support pole
+        const mainPole = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.1, 0.12, 4, 8),
+            standMaterial
+        );
+        mainPole.position.set(0, 2, 0.3);
+        mainPole.castShadow = true;
+        boardGroup.add(mainPole);
+
+        // Tripod legs
+        const legGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8);
+        for (let i = 0; i < 3; i++) {
+            const angle = (i / 3) * Math.PI * 2;
+            const leg = new THREE.Mesh(legGeometry, standMaterial);
+            leg.position.set(
+                Math.cos(angle) * 0.5,
+                0.5,
+                0.3 + Math.sin(angle) * 0.5
+            );
+            leg.rotation.z = Math.cos(angle) * 0.2;
+            leg.rotation.x = Math.sin(angle) * 0.2;
+            leg.castShadow = true;
+            boardGroup.add(leg);
+        }
+
+        // Create high-resolution canvas for whiteboard
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 768;
+        const ctx = canvas.getContext('2d');
+
+        // Whiteboard background
+        ctx.fillStyle = '#f8f9fa';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Subtle grid
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < canvas.width; i += 50) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, canvas.height);
+            ctx.stroke();
+        }
+        for (let i = 0; i < canvas.height; i += 50) {
+            ctx.beginPath();
+            ctx.moveTo(0, i);
+            ctx.lineTo(canvas.width, i);
+            ctx.stroke();
+        }
+
+        // Title
+        ctx.fillStyle = '#2c3e50';
+        ctx.font = 'bold 56px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(title, canvas.width / 2, 80);
+
+        // Underline
+        ctx.strokeStyle = '#3498db';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(200, 100);
+        ctx.lineTo(824, 100);
+        ctx.stroke();
+
+        // Placeholder sketch content
+        ctx.font = '36px Arial';
+        ctx.fillStyle = '#34495e';
+        ctx.fillText('Project Showcase', canvas.width / 2, 200);
+
+        // Draw some placeholder boxes/wireframes
+        ctx.strokeStyle = '#95a5a6';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(100, 250, 300, 200);
+        ctx.strokeRect(450, 250, 300, 200);
+
+        ctx.fillStyle = '#7f8c8d';
+        ctx.font = '28px Arial';
+        ctx.fillText('Feature 1', 250, 360);
+        ctx.fillText('Feature 2', 600, 360);
+
+        // Marker dots for emphasis
+        const dotColors = ['#e74c3c', '#f39c12', '#2ecc71', '#3498db'];
+        dotColors.forEach((color, i) => {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(150 + i * 200, 550, 20, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+
+        // Whiteboard surface
+        const boardMaterial = new THREE.MeshStandardMaterial({
+            map: texture,
+            roughness: 0.2,
+            metalness: 0.05,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.1
+        });
+
+        const board = new THREE.Mesh(
+            new THREE.BoxGeometry(4, 3, 0.08),
+            boardMaterial
+        );
+        board.position.set(0, 3.5, 0);
+        board.castShadow = true;
+        board.receiveShadow = true;
+        boardGroup.add(board);
+
+        // Aluminum frame
+        const frameMaterial = new THREE.MeshStandardMaterial({
+            color: 0xbdc3c7,
+            roughness: 0.3,
+            metalness: 0.8
+        });
+
+        const frameTop = new THREE.Mesh(
+            new THREE.BoxGeometry(4.2, 0.1, 0.1),
+            frameMaterial
+        );
+        frameTop.position.set(0, 5.05, 0);
+        frameTop.castShadow = true;
+        boardGroup.add(frameTop);
+
+        const frameBottom = new THREE.Mesh(
+            new THREE.BoxGeometry(4.2, 0.1, 0.1),
+            frameMaterial
+        );
+        frameBottom.position.set(0, 1.95, 0);
+        frameBottom.castShadow = true;
+        boardGroup.add(frameBottom);
+
+        const frameLeft = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 3.2, 0.1),
+            frameMaterial
+        );
+        frameLeft.position.set(-2.05, 3.5, 0);
+        frameLeft.castShadow = true;
+        boardGroup.add(frameLeft);
+
+        const frameRight = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 3.2, 0.1),
+            frameMaterial
+        );
+        frameRight.position.set(2.05, 3.5, 0);
+        frameRight.castShadow = true;
+        boardGroup.add(frameRight);
+
+        // Marker tray
+        const trayMaterial = new THREE.MeshStandardMaterial({
+            color: 0x95a5a6,
+            roughness: 0.5,
+            metalness: 0.3
+        });
+
+        const tray = new THREE.Mesh(
+            new THREE.BoxGeometry(3, 0.1, 0.2),
+            trayMaterial
+        );
+        tray.position.set(0, 1.85, 0.15);
+        tray.castShadow = true;
+        boardGroup.add(tray);
+
+        boardGroup.position.set(x, y, z);
+        boardGroup.rotation.y = Math.PI / 6; // Angle it slightly
+        boardGroup.userData = {
+            interactive: true,
+            type: 'board',
+            name: title,
+            description: 'Click to view project details!',
+            canvas: canvas,
+            texture: texture
+        };
+
+        this.scene.add(boardGroup);
+        this.interactiveObjects.push(boardGroup);
     }
 
     /**
