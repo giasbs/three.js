@@ -16,6 +16,7 @@ export class PlaygroundScene {
         this.mouse = new THREE.Vector2();
         this.hoveredObject = null;
         this.animatingObjects = new Map();
+        this.clock = new THREE.Clock(); // For shader animations
 
         this.init();
     }
@@ -73,44 +74,126 @@ export class PlaygroundScene {
     }
 
     /**
-     * Create lighting system with ambient and directional lights
+     * Create enhanced lighting system with hemisphere and directional lights
      */
     createLighting() {
-        // Ambient light for overall brightness
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        // Hemisphere light for sky/ground ambient lighting (more natural)
+        const hemisphereLight = new THREE.HemisphereLight(
+            0x87CEEB, // Sky color (light blue)
+            0x5fb358, // Ground color (grass green)
+            0.6
+        );
+        this.scene.add(hemisphereLight);
+
+        // Warm ambient light for overall brightness
+        const ambientLight = new THREE.AmbientLight(0xfff8dc, 0.3);
         this.scene.add(ambientLight);
 
-        // Directional light (sun) with shadows
-        const sunLight = new THREE.DirectionalLight(0xfffef0, 0.8);
+        // Main directional light (sun) with optimized shadows
+        const sunLight = new THREE.DirectionalLight(0xfff4e6, 1.2);
         sunLight.position.set(30, 40, 20);
         sunLight.castShadow = true;
-        sunLight.shadow.camera.left = -40;
-        sunLight.shadow.camera.right = 40;
-        sunLight.shadow.camera.top = 40;
-        sunLight.shadow.camera.bottom = -40;
-        sunLight.shadow.camera.near = 0.1;
-        sunLight.shadow.camera.far = 100;
-        sunLight.shadow.mapSize.width = 2048;
-        sunLight.shadow.mapSize.height = 2048;
-        sunLight.shadow.bias = -0.001;
+
+        // Optimized shadow settings for performance
+        sunLight.shadow.camera.left = -35;
+        sunLight.shadow.camera.right = 35;
+        sunLight.shadow.camera.top = 35;
+        sunLight.shadow.camera.bottom = -35;
+        sunLight.shadow.camera.near = 10;
+        sunLight.shadow.camera.far = 80;
+        sunLight.shadow.mapSize.width = 1024; // Reduced from 2048 for performance
+        sunLight.shadow.mapSize.height = 1024;
+        sunLight.shadow.bias = -0.0005;
+        sunLight.shadow.radius = 2; // Soft shadows
         this.scene.add(sunLight);
+
+        // Subtle fill light from opposite side (no shadows)
+        const fillLight = new THREE.DirectionalLight(0x9db4ff, 0.3);
+        fillLight.position.set(-20, 10, -10);
+        this.scene.add(fillLight);
+
+        // Store for later use
+        this.sunLight = sunLight;
     }
 
     /**
-     * Create the ground plane with grass texture
+     * Create the ground plane with animated grass shader
      */
     createGround() {
         const groundGeometry = new THREE.CircleGeometry(50, 64);
-        const groundMaterial = new THREE.MeshStandardMaterial({
-            color: 0x5fb358, // Grass green
-            roughness: 0.8,
-            metalness: 0.0
+
+        // Custom grass shader with animated wind
+        const groundMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 },
+                uBaseColor: { value: new THREE.Color(0x5fb358) },
+                uDarkColor: { value: new THREE.Color(0x4a9944) },
+                uLightColor: { value: new THREE.Color(0x6bcf7f) },
+                uSunDirection: { value: new THREE.Vector3(30, 40, 20).normalize() }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+
+                void main() {
+                    vUv = uv;
+                    vNormal = normalize(normalMatrix * normal);
+                    vPosition = position;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float uTime;
+                uniform vec3 uBaseColor;
+                uniform vec3 uDarkColor;
+                uniform vec3 uLightColor;
+                uniform vec3 uSunDirection;
+
+                varying vec2 vUv;
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+
+                // Simple noise function
+                float noise(vec2 p) {
+                    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+                }
+
+                void main() {
+                    // Distance from center for gradient
+                    float distFromCenter = length(vPosition.xy) / 50.0;
+
+                    // Animated grass variation
+                    float grassNoise = noise(vUv * 100.0 + uTime * 0.1);
+                    float windWave = sin(vPosition.x * 0.5 + uTime) * cos(vPosition.z * 0.5 + uTime * 0.8) * 0.1;
+
+                    // Mix colors based on noise and distance
+                    vec3 color = mix(uDarkColor, uLightColor, grassNoise * 0.5 + 0.5);
+                    color = mix(color, uBaseColor, 0.4);
+
+                    // Add subtle wind animation to color
+                    color += vec3(windWave * 0.05);
+
+                    // Darken edges slightly
+                    color = mix(color, uDarkColor, smoothstep(0.7, 1.0, distFromCenter) * 0.3);
+
+                    // Simple lighting
+                    float lightIntensity = dot(vNormal, normalize(uSunDirection)) * 0.5 + 0.5;
+                    color *= lightIntensity * 0.5 + 0.5;
+
+                    gl_FragColor = vec4(color, 1.0);
+                }
+            `
         });
+
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
-        ground.userData = { name: 'ground', type: 'environment' };
+        ground.userData = { name: 'ground', type: 'environment', material: groundMaterial };
         this.scene.add(ground);
+
+        // Store for animation updates
+        this.groundMaterial = groundMaterial;
 
         // Add some grass tufts for visual interest
         this.createGrassTufts();
@@ -186,13 +269,9 @@ export class PlaygroundScene {
         trunk.castShadow = true;
         treeGroup.add(trunk);
 
-        // Foliage (3 spheres stacked)
+        // Foliage (3 spheres stacked) with toon shading
         const foliageGeometry = new THREE.SphereGeometry(2, 16, 16);
-        const foliageMaterial = new THREE.MeshStandardMaterial({
-            color: 0x2d8b2d,
-            roughness: 0.7,
-            flatShading: true
-        });
+        const foliageMaterial = this.createToonMaterial(0x2d8b2d);
 
         const foliage1 = new THREE.Mesh(foliageGeometry, foliageMaterial);
         foliage1.position.y = 4;
@@ -261,12 +340,9 @@ export class PlaygroundScene {
         stem.position.y = 0.3;
         flowerGroup.add(stem);
 
-        // Petals (5 small spheres arranged in a circle)
+        // Petals (5 small spheres arranged in a circle) with toon shading
         const petalGeometry = new THREE.SphereGeometry(0.15, 8, 8);
-        const petalMaterial = new THREE.MeshStandardMaterial({
-            color: color,
-            roughness: 0.4
-        });
+        const petalMaterial = this.createToonMaterial(color);
 
         for (let i = 0; i < 5; i++) {
             const petal = new THREE.Mesh(petalGeometry, petalMaterial);
@@ -461,14 +537,14 @@ export class PlaygroundScene {
             slideGroup.add(step);
         }
 
-        // Slide surface
+        // Slide surface with enhanced material
         const slideGeometry = new THREE.BoxGeometry(1.5, 0.2, 4);
         const slideMaterial = new THREE.MeshStandardMaterial({
             color: 0xff1493, // Deep pink
-            roughness: 0.2,
-            metalness: 0.3,
-            emissive: 0x000000,
-            emissiveIntensity: 0
+            roughness: 0.3,
+            metalness: 0.4,
+            emissive: 0xff1493,
+            emissiveIntensity: 0.0 // Will increase on hover
         });
         const slideBoard = new THREE.Mesh(slideGeometry, slideMaterial);
         slideBoard.position.set(0, 1.3, 1);
@@ -746,11 +822,49 @@ export class PlaygroundScene {
     }
 
     /**
+     * Create toon/cel shaded material for objects
+     */
+    createToonMaterial(color, roughness = 0.7) {
+        // Using MeshToonMaterial for cel-shading effect
+        const material = new THREE.MeshToonMaterial({
+            color: color,
+            gradientMap: this.createGradientMap()
+        });
+        return material;
+    }
+
+    /**
+     * Create gradient map for toon shading
+     */
+    createGradientMap() {
+        // Create a simple 3-tone gradient for toon shading
+        const colors = new Uint8Array(3);
+        colors[0] = 80;   // Dark
+        colors[1] = 180;  // Mid
+        colors[2] = 255;  // Light
+
+        const gradientMap = new THREE.DataTexture(colors, colors.length, 1, THREE.RedFormat);
+        gradientMap.needsUpdate = true;
+        gradientMap.magFilter = THREE.NearestFilter;
+        gradientMap.minFilter = THREE.NearestFilter;
+
+        return gradientMap;
+    }
+
+    /**
      * Update method called every frame
      */
     update() {
         this.controls.update();
         this.updateAnimations();
+
+        // Update shader uniforms for animations
+        const elapsedTime = this.clock.getElapsedTime();
+
+        // Update grass shader time
+        if (this.groundMaterial) {
+            this.groundMaterial.uniforms.uTime.value = elapsedTime;
+        }
     }
 
     /**

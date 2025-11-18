@@ -16,7 +16,6 @@ class PlaygroundApp {
         this.audioContext = null;
         this.audioPlaying = false;
         this.oscillators = [];
-        this.currentInfoObject = null;
 
         // Camera viewpoints for different zones
         this.cameraViewpoints = {
@@ -87,18 +86,6 @@ class PlaygroundApp {
 
         // Keyboard navigation
         document.addEventListener('keydown', this.onKeyDown.bind(this));
-
-        // Info panel controls
-        const infoPanel = document.getElementById('info-panel');
-        const closeBtn = document.getElementById('close-info');
-
-        if (infoPanel) infoPanel.addEventListener('click', this.onInfoPanelClick.bind(this));
-        if (closeBtn) {
-            closeBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent triggering panel click
-                this.closeInfoPanel();
-            });
-        }
     }
 
     /**
@@ -165,25 +152,26 @@ class PlaygroundApp {
                 break;
 
             case 'swing':
-                // Highlight the seat
+                // Highlight the seat with warm glow
                 if (object.userData.swingSeat) {
-                    object.userData.swingSeat.material.emissive.setHex(0x442211);
+                    object.userData.swingSeat.material.emissive.setHex(0xff6347);
+                    object.userData.swingSeat.material.emissiveIntensity = 0.3;
                 }
                 break;
 
             case 'slide':
-                // Glow effect
+                // Enhanced glow effect with rim lighting
                 if (object.userData.slideMaterial) {
-                    object.userData.slideMaterial.emissive.setHex(0x661144);
-                    object.userData.slideMaterial.emissiveIntensity = 0.3;
+                    object.userData.slideMaterial.emissive.setHex(0xff1493);
+                    object.userData.slideMaterial.emissiveIntensity = 0.4;
                 }
                 break;
 
             case 'lamp':
-                // Pulse slightly
+                // Enhanced pulse effect
                 if (object.userData.lampMaterial) {
-                    object.userData.lampMaterial.emissive.setHex(0x332200);
-                    object.userData.lampMaterial.emissiveIntensity = 0.2;
+                    object.userData.lampMaterial.emissive.setHex(0xffa500);
+                    object.userData.lampMaterial.emissiveIntensity = 0.4;
                 }
                 break;
 
@@ -226,6 +214,7 @@ class PlaygroundApp {
                 // Remove highlight
                 if (object.userData.swingSeat) {
                     object.userData.swingSeat.material.emissive.setHex(0x000000);
+                    object.userData.swingSeat.material.emissiveIntensity = 0;
                 }
                 break;
 
@@ -325,9 +314,6 @@ class PlaygroundApp {
                 this.danceFlower(object);
                 break;
         }
-
-        // Show info panel
-        this.showInfoPanel(object);
     }
 
     /**
@@ -551,71 +537,6 @@ class PlaygroundApp {
     }
 
     /**
-     * Handle click on info panel (works for both collapsed circle and expanded card)
-     */
-    onInfoPanelClick(event) {
-        const infoPanel = document.getElementById('info-panel');
-
-        // If panel is collapsed (circle), expand it if we have info
-        if (infoPanel && !infoPanel.classList.contains('expanded')) {
-            if (this.currentInfoObject) {
-                this.expandInfoPanel();
-            }
-        }
-        // If panel is expanded and click is outside the content area, close it
-        else if (infoPanel && infoPanel.classList.contains('expanded')) {
-            const infoContent = event.target.closest('.info-content');
-            if (!infoContent) {
-                this.closeInfoPanel();
-            }
-        }
-    }
-
-    /**
-     * Show info panel for an object
-     */
-    showInfoPanel(object) {
-        const infoTitle = document.getElementById('info-title');
-        const infoDescription = document.getElementById('info-description');
-
-        if (infoTitle && infoDescription) {
-            // Store the current object info
-            this.currentInfoObject = object;
-
-            // Update content
-            infoTitle.textContent = this.formatName(object.userData.name);
-            infoDescription.textContent = object.userData.description || 'A wonderful part of the playground!';
-
-            // Expand panel
-            this.expandInfoPanel();
-        }
-    }
-
-    /**
-     * Expand the info panel from circle to card
-     */
-    expandInfoPanel() {
-        const infoPanel = document.getElementById('info-panel');
-
-        if (infoPanel) {
-            infoPanel.classList.add('expanded');
-            infoPanel.setAttribute('aria-hidden', 'false');
-        }
-    }
-
-    /**
-     * Close info panel (collapse back to circle)
-     */
-    closeInfoPanel() {
-        const infoPanel = document.getElementById('info-panel');
-
-        if (infoPanel) {
-            infoPanel.classList.remove('expanded');
-            infoPanel.setAttribute('aria-hidden', 'true');
-        }
-    }
-
-    /**
      * Format object name for display
      */
     formatName(name) {
@@ -755,9 +676,6 @@ class PlaygroundApp {
                 break;
             case '4':
                 this.moveCamera('relaxZone');
-                break;
-            case 'Escape':
-                this.closeInfoPanel();
                 break;
         }
     }
