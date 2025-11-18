@@ -554,13 +554,17 @@ class PlaygroundApp {
 
         if (!this.audioPlaying) {
             this.startAmbientSound();
-            soundToggle.textContent = '🔊 Sound On';
-            soundToggle.setAttribute('aria-label', 'Turn off ambient sound');
+            if (soundToggle) {
+                soundToggle.textContent = '🔊 Sound On';
+                soundToggle.setAttribute('aria-label', 'Turn off ambient sound');
+            }
             this.audioPlaying = true;
         } else {
             this.stopAmbientSound();
-            soundToggle.textContent = '🔇 Sound Off';
-            soundToggle.setAttribute('aria-label', 'Turn on ambient sound');
+            if (soundToggle) {
+                soundToggle.textContent = '🔇 Sound Off';
+                soundToggle.setAttribute('aria-label', 'Turn on ambient sound');
+            }
             this.audioPlaying = false;
         }
     }
