@@ -1571,6 +1571,48 @@ export class PlaygroundScene {
         rightShoe.castShadow = true;
         characterGroup.add(rightShoe);
 
+        // Create control bubble above head
+        const bubbleGroup = new THREE.Group();
+
+        // Bubble sphere
+        const bubbleGeometry = new THREE.SphereGeometry(0.25, 16, 16);
+        const bubbleMaterial = new THREE.MeshStandardMaterial({
+            color: 0x4ecdc4,
+            emissive: 0x4ecdc4,
+            emissiveIntensity: 0.5,
+            transparent: true,
+            opacity: 0.8,
+            roughness: 0.2,
+            metalness: 0.1
+        });
+        const bubble = new THREE.Mesh(bubbleGeometry, bubbleMaterial);
+        bubble.castShadow = true;
+        bubbleGroup.add(bubble);
+
+        // Icon inside bubble (small sphere for focus icon)
+        const iconGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+        const iconMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.8
+        });
+        const icon = new THREE.Mesh(iconGeometry, iconMaterial);
+        bubbleGroup.add(icon);
+
+        // Position bubble above head (20cm = 0.2 units above head which is at 1.6)
+        bubbleGroup.position.set(0, 2.2, 0);
+        bubbleGroup.visible = false; // Hidden by default
+
+        // Make bubble interactive
+        bubbleGroup.userData = {
+            interactive: true,
+            type: 'bubble',
+            name: 'focus-bubble',
+            description: 'Click to enter/exit focus mode!'
+        };
+
+        characterGroup.add(bubbleGroup);
+
         // Starting position
         characterGroup.position.set(0, 0, 0);
 
@@ -1579,7 +1621,7 @@ export class PlaygroundScene {
             interactive: true,
             type: 'character',
             name: 'walking-man',
-            description: 'Click to pause/resume walking!'
+            description: 'Click to show/hide control bubble!'
         };
 
         // Store references for animation
@@ -1593,9 +1635,15 @@ export class PlaygroundScene {
             rightHand: rightHand,
             leftShoe: leftShoe,
             rightShoe: rightShoe,
+            bubble: bubbleGroup,
+            bubbleMesh: bubble,
+            bubbleIcon: icon,
             pathProgress: 0,
             walkSpeed: 0.3,
-            paused: false, // Toggle for pause/play
+            paused: false,
+            focusMode: false, // New: focus mode state
+            bubbleVisible: false, // Track bubble visibility
+            bubbleHoverPhase: 0, // For hover animation
             // Walking path points (circular around playground)
             path: [
                 { x: 0, z: 15 },
@@ -1611,6 +1659,7 @@ export class PlaygroundScene {
 
         this.scene.add(characterGroup);
         this.interactiveObjects.push(characterGroup);
+        this.interactiveObjects.push(bubbleGroup);
     }
 
     /**
@@ -1621,14 +1670,34 @@ export class PlaygroundScene {
 
         const char = this.character;
 
-        // Skip updates if character is paused
-        if (char.paused) {
-            // Keep character in idle pose when paused
-            char.leftArm.rotation.x = 0;
-            char.rightArm.rotation.x = 0;
-            char.leftLeg.rotation.x = 0;
-            char.rightLeg.rotation.x = 0;
-            char.group.position.y = 0;
+        // Animate bubble if visible
+        if (char.bubbleVisible && char.bubble) {
+            // Floating hover animation
+            char.bubbleHoverPhase += 0.02;
+            char.bubble.position.y = 2.2 + Math.sin(char.bubbleHoverPhase) * 0.1;
+
+            // Gentle rotation
+            char.bubble.rotation.y = time * 0.5;
+
+            // Pulsing glow
+            const pulse = 0.5 + Math.sin(time * 3) * 0.3;
+            char.bubbleMesh.material.emissiveIntensity = pulse;
+
+            // Icon rotation
+            char.bubbleIcon.rotation.y = time * 2;
+            char.bubbleIcon.rotation.x = Math.sin(time * 2) * 0.3;
+        }
+
+        // Skip movement updates if character is in focus mode or paused
+        if (char.focusMode || char.paused) {
+            // Keep character in idle pose when paused/focused
+            if (!char.focusMode) { // Only reset if not in focus mode
+                char.leftArm.rotation.x = 0;
+                char.rightArm.rotation.x = 0;
+                char.leftLeg.rotation.x = 0;
+                char.rightLeg.rotation.x = 0;
+                char.group.position.y = 0;
+            }
             return;
         }
 
