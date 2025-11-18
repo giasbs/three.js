@@ -32,15 +32,18 @@ class PlaygroundApp {
         this.savedCameraPosition = null;
         this.savedCameraTarget = null;
         this.cameraDistance = 5; // Distance from character in focus mode
-        this.cameraHeight = 3; // Height above character
-        this.cameraAngle = 0; // Angle around character
+        this.cameraHeight = 2.5; // Height above character
+        this.cameraYaw = 0; // Horizontal rotation around character (in radians)
+        this.cameraPitch = 0.3; // Vertical angle (in radians)
 
         // WASD movement keys
         this.keys = {
             w: false,
             a: false,
             s: false,
-            d: false
+            d: false,
+            q: false, // Rotate camera left
+            e: false  // Rotate camera right
         };
 
         this.init();
@@ -594,21 +597,27 @@ class PlaygroundApp {
             // Disable OrbitControls
             controls.enabled = false;
 
-            // Reset camera angle
-            this.cameraAngle = 0;
+            // Initialize camera angle behind character
+            this.cameraYaw = char.group.rotation.y + Math.PI; // Behind character
+            this.cameraPitch = 0.3; // Slight downward angle
 
             // Immediately position camera in third-person view behind character
             const camera = this.playgroundScene.getCamera();
             const charPos = char.group.position;
 
-            camera.position.set(
-                charPos.x + Math.sin(this.cameraAngle) * this.cameraDistance,
-                charPos.y + this.cameraHeight,
-                charPos.z + Math.cos(this.cameraAngle) * this.cameraDistance
-            );
-            camera.lookAt(new THREE.Vector3(charPos.x, charPos.y + 1, charPos.z));
+            // Position camera behind and above character
+            const offsetX = Math.sin(this.cameraYaw) * this.cameraDistance;
+            const offsetZ = Math.cos(this.cameraYaw) * this.cameraDistance;
+            const offsetY = this.cameraHeight;
 
-            console.log('FOCUS MODE ACTIVATED - Use WASD to move, mouse wheel to zoom');
+            camera.position.set(
+                charPos.x + offsetX,
+                charPos.y + offsetY,
+                charPos.z + offsetZ
+            );
+            camera.lookAt(new THREE.Vector3(charPos.x, charPos.y + 1.5, charPos.z));
+
+            console.log('FOCUS MODE ACTIVATED - WASD to move, Q/E to rotate camera, mouse wheel to zoom');
         } else {
             // Exiting focus mode
             char.focusMode = false;
@@ -927,7 +936,7 @@ class PlaygroundApp {
      * Handle keyboard input
      */
     onKeyDown(event) {
-        // Handle WASD for focus mode
+        // Handle WASD + QE for focus mode
         if (this.focusMode) {
             switch (event.key.toLowerCase()) {
                 case 'w':
@@ -941,6 +950,12 @@ class PlaygroundApp {
                     break;
                 case 'd':
                     this.keys.d = true;
+                    break;
+                case 'q':
+                    this.keys.q = true;
+                    break;
+                case 'e':
+                    this.keys.e = true;
                     break;
             }
         } else {
@@ -979,6 +994,12 @@ class PlaygroundApp {
                     break;
                 case 'd':
                     this.keys.d = false;
+                    break;
+                case 'q':
+                    this.keys.q = false;
+                    break;
+                case 'e':
+                    this.keys.e = false;
                     break;
             }
         }
@@ -1021,24 +1042,44 @@ class PlaygroundApp {
         if (!this.focusMode || !this.playgroundScene.character) return;
 
         const char = this.playgroundScene.character;
-        const moveSpeed = 0.15; // Units per frame
+        const camera = this.playgroundScene.getCamera();
+        const moveSpeed = 0.2; // Units per frame
+        const rotateSpeed = 0.03; // Radians per frame
 
-        // Calculate movement direction based on camera angle
-        let moveX = 0;
-        let moveZ = 0;
+        // Rotate camera with Q/E keys
+        if (this.keys.q) {
+            this.cameraYaw += rotateSpeed;
+        }
+        if (this.keys.e) {
+            this.cameraYaw -= rotateSpeed;
+        }
+
+        // Calculate movement direction RELATIVE TO CAMERA
+        let moveForward = 0;
+        let moveRight = 0;
 
         if (this.keys.w) {
-            moveZ -= moveSpeed;
+            moveForward = 1;
         }
         if (this.keys.s) {
-            moveZ += moveSpeed;
-        }
-        if (this.keys.a) {
-            moveX -= moveSpeed;
+            moveForward = -1;
         }
         if (this.keys.d) {
-            moveX += moveSpeed;
+            moveRight = 1;
         }
+        if (this.keys.a) {
+            moveRight = -1;
+        }
+
+        // Convert camera-relative movement to world space
+        // Camera yaw determines forward direction
+        const forwardX = -Math.sin(this.cameraYaw) * moveForward * moveSpeed;
+        const forwardZ = -Math.cos(this.cameraYaw) * moveForward * moveSpeed;
+        const rightX = Math.cos(this.cameraYaw) * moveRight * moveSpeed;
+        const rightZ = -Math.sin(this.cameraYaw) * moveRight * moveSpeed;
+
+        const moveX = forwardX + rightX;
+        const moveZ = forwardZ + rightZ;
 
         // Apply movement to character
         if (moveX !== 0 || moveZ !== 0) {
@@ -1051,10 +1092,8 @@ class PlaygroundApp {
             char.group.position.z = Math.max(-maxBounds, Math.min(maxBounds, char.group.position.z));
 
             // Rotate character to face movement direction
-            if (moveX !== 0 || moveZ !== 0) {
-                const angle = Math.atan2(moveX, moveZ);
-                char.group.rotation.y = angle;
-            }
+            const targetRotation = Math.atan2(moveX, moveZ);
+            char.group.rotation.y = targetRotation;
 
             // Animate limbs while moving
             const time = performance.now() * 0.01;
@@ -1063,30 +1102,32 @@ class PlaygroundApp {
             char.rightArm.rotation.x = limbSwing;
             char.leftLeg.rotation.x = limbSwing;
             char.rightLeg.rotation.x = -limbSwing;
+        } else {
+            // Idle pose when not moving
+            char.leftArm.rotation.x = 0;
+            char.rightArm.rotation.x = 0;
+            char.leftLeg.rotation.x = 0;
+            char.rightLeg.rotation.x = 0;
         }
 
         // Update third-person camera position
-        const camera = this.playgroundScene.getCamera();
         const charPos = char.group.position;
 
-        // Camera positioned behind and above character
-        const cameraOffset = new THREE.Vector3(
-            Math.sin(this.cameraAngle) * this.cameraDistance,
-            this.cameraHeight,
-            Math.cos(this.cameraAngle) * this.cameraDistance
-        );
+        // Calculate camera position based on yaw and pitch
+        const horizontalDistance = this.cameraDistance * Math.cos(this.cameraPitch);
+        const verticalDistance = this.cameraDistance * Math.sin(this.cameraPitch);
 
-        const targetCameraPos = new THREE.Vector3(
-            charPos.x + cameraOffset.x,
-            charPos.y + cameraOffset.y,
-            charPos.z + cameraOffset.z
-        );
+        const cameraX = charPos.x + Math.sin(this.cameraYaw) * horizontalDistance;
+        const cameraY = charPos.y + this.cameraHeight + verticalDistance;
+        const cameraZ = charPos.z + Math.cos(this.cameraYaw) * horizontalDistance;
 
         // Smooth camera follow
-        camera.position.lerp(targetCameraPos, 0.1);
+        const targetCameraPos = new THREE.Vector3(cameraX, cameraY, cameraZ);
+        camera.position.lerp(targetCameraPos, 0.15);
 
-        // Look at character
-        camera.lookAt(new THREE.Vector3(charPos.x, charPos.y + 1, charPos.z));
+        // Always look at character's upper body
+        const lookAtTarget = new THREE.Vector3(charPos.x, charPos.y + 1.5, charPos.z);
+        camera.lookAt(lookAtTarget);
     }
 
     /**
