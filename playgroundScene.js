@@ -34,6 +34,7 @@ export class PlaygroundScene {
         this.fountain = null;
         this.windmills = [];
         this.character = null;
+        this.grassBlades = []; // Animated grass patches
 
         // Textures
         this.textures = {};
@@ -331,6 +332,7 @@ export class PlaygroundScene {
         this.createRelaxZone();
         this.createExplorationZone();
         this.createAtmosphere();
+        this.createAnimatedGrass();
         this.createBoards();
         this.createCharacter();
     }
@@ -1320,6 +1322,85 @@ export class PlaygroundScene {
     }
 
     /**
+     * Create animated grass patches
+     */
+    createAnimatedGrass() {
+        // Create multiple grass patches around the playground
+        const patchPositions = [
+            // Around play area
+            { x: 5, z: 8 }, { x: -5, z: 8 }, { x: 10, z: 3 }, { x: -8, z: 5 },
+            // Around garden
+            { x: -12, z: -5 }, { x: -8, z: -10 }, { x: -15, z: -12 },
+            // Around relax zone
+            { x: 3, z: -18 }, { x: -5, z: -20 }, { x: 8, z: -22 },
+            // Random spots
+            { x: 18, z: 15 }, { x: -20, z: 8 }, { x: 15, z: -8 },
+            { x: -18, z: -15 }, { x: 22, z: -5 }, { x: -22, z: 18 },
+            { x: 12, z: -15 }, { x: -10, z: 15 }, { x: 25, z: 10 },
+            { x: -25, z: -10 }
+        ];
+
+        patchPositions.forEach(pos => {
+            this.createGrassPatch(pos.x, pos.z);
+        });
+    }
+
+    /**
+     * Create a single grass patch with individual blades
+     */
+    createGrassPatch(centerX, centerZ) {
+        const bladesPerPatch = 30; // Number of grass blades in each patch
+        const patchRadius = 1.5; // Size of the grass patch
+
+        for (let i = 0; i < bladesPerPatch; i++) {
+            // Random position within patch
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * patchRadius;
+            const x = centerX + Math.cos(angle) * distance;
+            const z = centerZ + Math.sin(angle) * distance;
+
+            // Create grass blade
+            const bladeHeight = 0.3 + Math.random() * 0.4;
+            const bladeWidth = 0.03 + Math.random() * 0.02;
+
+            // Use a tapered geometry for realistic grass blade
+            const bladeGeometry = new THREE.ConeGeometry(bladeWidth, bladeHeight, 3, 1);
+            bladeGeometry.translate(0, bladeHeight / 2, 0); // Pivot at base
+
+            // Grass color with variation
+            const greenVariation = 0.5 + Math.random() * 0.3;
+            const grassColor = new THREE.Color(
+                0.2 * greenVariation,
+                0.6 * greenVariation,
+                0.2 * greenVariation
+            );
+
+            const bladeMaterial = new THREE.MeshStandardMaterial({
+                color: grassColor,
+                flatShading: true,
+                side: THREE.DoubleSide
+            });
+
+            const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+            blade.position.set(x, 0, z);
+            blade.rotation.y = Math.random() * Math.PI * 2; // Random rotation
+            blade.castShadow = true;
+
+            // Store animation data
+            this.grassBlades.push({
+                mesh: blade,
+                baseRotationX: 0,
+                baseRotationZ: 0,
+                windPhase: Math.random() * Math.PI * 2,
+                windSpeed: 0.8 + Math.random() * 0.4,
+                windStrength: 0.15 + Math.random() * 0.15
+            });
+
+            this.scene.add(blade);
+        }
+    }
+
+    /**
      * Create butterflies
      */
     createButterflies() {
@@ -2218,6 +2299,28 @@ export class PlaygroundScene {
                 }
             });
         }
+
+        // Animate grass blades (wind effect)
+        this.grassBlades.forEach(grass => {
+            // Wind sway animation
+            grass.windPhase += 0.02 * grass.windSpeed;
+
+            // Create wave-like motion using noise
+            const noiseValue = this.noise3D(
+                grass.mesh.position.x * 0.1,
+                grass.mesh.position.z * 0.1,
+                time * 0.5
+            );
+
+            // Combine sine wave with noise for natural movement
+            const swayX = Math.sin(grass.windPhase) * grass.windStrength;
+            const swayZ = Math.cos(grass.windPhase * 1.3) * grass.windStrength * 0.7;
+            const noiseInfluence = noiseValue * 0.1;
+
+            // Apply rotation (grass bends from the base)
+            grass.mesh.rotation.x = grass.baseRotationX + swayX + noiseInfluence;
+            grass.mesh.rotation.z = grass.baseRotationZ + swayZ + noiseInfluence;
+        });
 
         // Update balls
         this.updateBalls(deltaTime);
