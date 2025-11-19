@@ -31,10 +31,9 @@ class PlaygroundApp {
         this.focusMode = false;
         this.savedCameraPosition = null;
         this.savedCameraTarget = null;
-        this.cameraDistance = 8; // Distance from character in focus mode (increased for better view)
-        this.cameraHeight = 3; // Height above character
-        this.cameraYaw = 0; // Horizontal rotation around character (in radians)
-        this.cameraPitch = 0.2; // Vertical angle (in radians) - slight downward tilt
+        this.cameraDistance = 10; // Distance behind character
+        this.cameraHeight = 4; // Height above ground
+        this.cameraRotation = 0; // Rotation around character (degrees)
 
         // WASD movement keys
         this.keys = {
@@ -588,7 +587,7 @@ class PlaygroundApp {
         if (this.focusMode) {
             // Entering focus mode
             char.focusMode = true;
-            char.paused = true; // Pause walking animation
+            char.paused = true;
 
             // Save current camera state
             this.savedCameraPosition = this.playgroundScene.getCamera().position.clone();
@@ -597,29 +596,26 @@ class PlaygroundApp {
             // Disable OrbitControls
             controls.enabled = false;
 
-            // Initialize camera angle behind character (facing forward)
-            // Character's rotation.y is where it faces, so add PI to get behind it
-            this.cameraYaw = char.group.rotation.y + Math.PI;
-            this.cameraPitch = 0.2; // Slight downward angle
+            // Reset camera rotation
+            this.cameraRotation = 0;
 
-            // Immediately position camera in third-person view behind character
+            // Set initial camera position (simple: directly behind and above character)
             const camera = this.playgroundScene.getCamera();
             const charPos = char.group.position;
 
-            // Calculate camera position using same logic as update loop
-            const horizontalDistance = this.cameraDistance * Math.cos(this.cameraPitch);
-            const verticalDistance = this.cameraDistance * Math.sin(this.cameraPitch);
+            camera.position.set(
+                charPos.x,
+                charPos.y + this.cameraHeight,
+                charPos.z + this.cameraDistance
+            );
 
-            const cameraX = charPos.x + Math.sin(this.cameraYaw) * horizontalDistance;
-            const cameraY = charPos.y + this.cameraHeight + verticalDistance;
-            const cameraZ = charPos.z + Math.cos(this.cameraYaw) * horizontalDistance;
+            // Look at character's upper body
+            camera.lookAt(charPos.x, charPos.y + 1.5, charPos.z);
 
-            camera.position.set(cameraX, cameraY, cameraZ);
-            camera.lookAt(new THREE.Vector3(charPos.x, charPos.y + 1.2, charPos.z));
-
-            console.log('FOCUS MODE ACTIVATED - WASD to move, Q/E to rotate camera, mouse wheel to zoom');
-            console.log('Camera pos:', cameraX.toFixed(2), cameraY.toFixed(2), cameraZ.toFixed(2));
-            console.log('Character pos:', charPos.x.toFixed(2), charPos.y.toFixed(2), charPos.z.toFixed(2));
+            console.log('FOCUS MODE ACTIVATED');
+            console.log('Camera at:', camera.position.x.toFixed(2), camera.position.y.toFixed(2), camera.position.z.toFixed(2));
+            console.log('Looking at:', charPos.x.toFixed(2), charPos.y.toFixed(2), charPos.z.toFixed(2));
+            console.log('Controls:', 'WASD=move, Q/E=rotate camera, Mouse Wheel=zoom');
         } else {
             // Exiting focus mode
             char.focusMode = false;
@@ -1045,91 +1041,84 @@ class PlaygroundApp {
 
         const char = this.playgroundScene.character;
         const camera = this.playgroundScene.getCamera();
-        const moveSpeed = 0.2; // Units per frame
-        const rotateSpeed = 0.03; // Radians per frame
+        const charPos = char.group.position;
 
-        // Rotate camera with Q/E keys
+        const moveSpeed = 0.15;
+        const rotateSpeed = 2; // degrees per frame
+
+        // Rotate camera with Q/E
         if (this.keys.q) {
-            this.cameraYaw += rotateSpeed;
+            this.cameraRotation += rotateSpeed;
         }
         if (this.keys.e) {
-            this.cameraYaw -= rotateSpeed;
+            this.cameraRotation -= rotateSpeed;
         }
 
-        // Calculate movement direction RELATIVE TO CAMERA
-        let moveForward = 0;
-        let moveRight = 0;
+        // Calculate movement direction
+        let moveX = 0;
+        let moveZ = 0;
+
+        // Convert rotation to radians for calculation
+        const rotRad = (this.cameraRotation) * (Math.PI / 180);
 
         if (this.keys.w) {
-            moveForward = 1;
+            moveX -= Math.sin(rotRad) * moveSpeed;
+            moveZ -= Math.cos(rotRad) * moveSpeed;
         }
         if (this.keys.s) {
-            moveForward = -1;
-        }
-        if (this.keys.d) {
-            moveRight = 1;
+            moveX += Math.sin(rotRad) * moveSpeed;
+            moveZ += Math.cos(rotRad) * moveSpeed;
         }
         if (this.keys.a) {
-            moveRight = -1;
+            moveX -= Math.cos(rotRad) * moveSpeed;
+            moveZ += Math.sin(rotRad) * moveSpeed;
+        }
+        if (this.keys.d) {
+            moveX += Math.cos(rotRad) * moveSpeed;
+            moveZ -= Math.sin(rotRad) * moveSpeed;
         }
 
-        // Convert camera-relative movement to world space
-        // Camera yaw determines forward direction
-        const forwardX = -Math.sin(this.cameraYaw) * moveForward * moveSpeed;
-        const forwardZ = -Math.cos(this.cameraYaw) * moveForward * moveSpeed;
-        const rightX = Math.cos(this.cameraYaw) * moveRight * moveSpeed;
-        const rightZ = -Math.sin(this.cameraYaw) * moveRight * moveSpeed;
-
-        const moveX = forwardX + rightX;
-        const moveZ = forwardZ + rightZ;
-
-        // Apply movement to character
+        // Move character
         if (moveX !== 0 || moveZ !== 0) {
             char.group.position.x += moveX;
             char.group.position.z += moveZ;
 
-            // Keep character within bounds
+            // Bounds
             const maxBounds = 30;
             char.group.position.x = Math.max(-maxBounds, Math.min(maxBounds, char.group.position.x));
             char.group.position.z = Math.max(-maxBounds, Math.min(maxBounds, char.group.position.z));
 
             // Rotate character to face movement direction
-            const targetRotation = Math.atan2(moveX, moveZ);
-            char.group.rotation.y = targetRotation;
+            char.group.rotation.y = Math.atan2(moveX, moveZ);
 
-            // Animate limbs while moving
+            // Walking animation
             const time = performance.now() * 0.01;
-            const limbSwing = Math.sin(time * 8) * 0.4;
-            char.leftArm.rotation.x = -limbSwing;
-            char.rightArm.rotation.x = limbSwing;
-            char.leftLeg.rotation.x = limbSwing;
-            char.rightLeg.rotation.x = -limbSwing;
+            const swing = Math.sin(time * 8) * 0.4;
+            char.leftArm.rotation.x = -swing;
+            char.rightArm.rotation.x = swing;
+            char.leftLeg.rotation.x = swing;
+            char.rightLeg.rotation.x = -swing;
         } else {
-            // Idle pose when not moving
+            // Idle
             char.leftArm.rotation.x = 0;
             char.rightArm.rotation.x = 0;
             char.leftLeg.rotation.x = 0;
             char.rightLeg.rotation.x = 0;
         }
 
-        // Update third-person camera position
-        const charPos = char.group.position;
+        // Update camera position - simple circular orbit
+        const rotRadians = (this.cameraRotation) * (Math.PI / 180);
+        const targetCameraX = charPos.x + Math.sin(rotRadians) * this.cameraDistance;
+        const targetCameraY = charPos.y + this.cameraHeight;
+        const targetCameraZ = charPos.z + Math.cos(rotRadians) * this.cameraDistance;
 
-        // Calculate camera position based on yaw and pitch
-        const horizontalDistance = this.cameraDistance * Math.cos(this.cameraPitch);
-        const verticalDistance = this.cameraDistance * Math.sin(this.cameraPitch);
+        // Smooth follow
+        camera.position.x += (targetCameraX - camera.position.x) * 0.1;
+        camera.position.y += (targetCameraY - camera.position.y) * 0.1;
+        camera.position.z += (targetCameraZ - camera.position.z) * 0.1;
 
-        const cameraX = charPos.x + Math.sin(this.cameraYaw) * horizontalDistance;
-        const cameraY = charPos.y + this.cameraHeight + verticalDistance;
-        const cameraZ = charPos.z + Math.cos(this.cameraYaw) * horizontalDistance;
-
-        // Smooth camera follow
-        const targetCameraPos = new THREE.Vector3(cameraX, cameraY, cameraZ);
-        camera.position.lerp(targetCameraPos, 0.15);
-
-        // Always look at character's chest/upper body (not too high, not too low)
-        const lookAtTarget = new THREE.Vector3(charPos.x, charPos.y + 1.2, charPos.z);
-        camera.lookAt(lookAtTarget);
+        // Always look at character
+        camera.lookAt(charPos.x, charPos.y + 1.5, charPos.z);
     }
 
     /**
