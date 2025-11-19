@@ -1349,7 +1349,7 @@ export class PlaygroundScene {
      * Create a single grass patch with individual blades
      */
     createGrassPatch(centerX, centerZ) {
-        const bladesPerPatch = 30; // Number of grass blades in each patch
+        const bladesPerPatch = 15; // Reduced from 30 for better performance
         const patchRadius = 1.5; // Size of the grass patch
 
         for (let i = 0; i < bladesPerPatch; i++) {
@@ -1384,7 +1384,7 @@ export class PlaygroundScene {
             const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
             blade.position.set(x, 0, z);
             blade.rotation.y = Math.random() * Math.PI * 2; // Random rotation
-            blade.castShadow = true;
+            blade.castShadow = false; // Disable shadows for grass (performance)
 
             // Store animation data
             this.grassBlades.push({
@@ -1393,7 +1393,9 @@ export class PlaygroundScene {
                 baseRotationZ: 0,
                 windPhase: Math.random() * Math.PI * 2,
                 windSpeed: 0.8 + Math.random() * 0.4,
-                windStrength: 0.15 + Math.random() * 0.15
+                windStrength: 0.15 + Math.random() * 0.15,
+                posX: x, // Cache position for wave calculation
+                posZ: z
             });
 
             this.scene.add(blade);
@@ -2300,26 +2302,22 @@ export class PlaygroundScene {
             });
         }
 
-        // Animate grass blades (wind effect)
+        // Animate grass blades (optimized wind effect)
         this.grassBlades.forEach(grass => {
-            // Wind sway animation
+            // Simple wind sway animation (removed expensive noise3D)
             grass.windPhase += 0.02 * grass.windSpeed;
 
-            // Create wave-like motion using noise
-            const noiseValue = this.noise3D(
-                grass.mesh.position.x * 0.1,
-                grass.mesh.position.z * 0.1,
-                time * 0.5
-            );
+            // Create wave-like motion using simple sine waves
+            // Use cached position for wave propagation
+            const waveOffset = (grass.posX * 0.1 + grass.posZ * 0.1);
 
-            // Combine sine wave with noise for natural movement
-            const swayX = Math.sin(grass.windPhase) * grass.windStrength;
-            const swayZ = Math.cos(grass.windPhase * 1.3) * grass.windStrength * 0.7;
-            const noiseInfluence = noiseValue * 0.1;
+            // Combine multiple sine waves for natural movement
+            const swayX = Math.sin(grass.windPhase + waveOffset) * grass.windStrength;
+            const swayZ = Math.cos(grass.windPhase * 1.3 + waveOffset * 0.7) * grass.windStrength * 0.7;
 
             // Apply rotation (grass bends from the base)
-            grass.mesh.rotation.x = grass.baseRotationX + swayX + noiseInfluence;
-            grass.mesh.rotation.z = grass.baseRotationZ + swayZ + noiseInfluence;
+            grass.mesh.rotation.x = grass.baseRotationX + swayX;
+            grass.mesh.rotation.z = grass.baseRotationZ + swayZ;
         });
 
         // Update balls

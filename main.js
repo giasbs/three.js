@@ -16,6 +16,7 @@ class PlaygroundApp {
         this.audioContext = null;
         this.audioPlaying = false;
         this.oscillators = [];
+        this.lastHoverUpdate = 0; // For throttling hover raycasting
 
         // Camera viewpoints for different zones
         this.cameraViewpoints = {
@@ -117,7 +118,11 @@ class PlaygroundApp {
         this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
         this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-        this.updateHover();
+        // Throttle hover updates for better performance (only update every 50ms)
+        if (!this.lastHoverUpdate || Date.now() - this.lastHoverUpdate > 50) {
+            this.updateHover();
+            this.lastHoverUpdate = Date.now();
+        }
     }
 
     /**
