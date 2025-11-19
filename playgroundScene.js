@@ -1,46 +1,311 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { createNoise3D } from 'simplex-noise';
 
 /**
- * PlaygroundScene Class
- * Creates and manages the 3D playground environment with interactive elements
+ * WonderPlay Garden - A Creative Living Playground
+ * Redesigned with better structure, creative elements, and optimized performance
  */
 export class PlaygroundScene {
     constructor() {
+        // Core Three.js components
         this.scene = null;
         this.camera = null;
         this.renderer = null;
         this.controls = null;
+
+        // Interaction system
         this.interactiveObjects = [];
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
         this.hoveredObject = null;
         this.animatingObjects = new Map();
-        this.clock = new THREE.Clock(); // For shader animations
+
+        // Animation system
+        this.clock = new THREE.Clock();
+        this.time = 0;
+
+        // Living elements (simplified - no complex shaders)
+        this.noise3D = createNoise3D();
+        this.flowers = [];
+        this.butterflies = [];
+        this.floatingLights = [];
+        this.balls = [];
+        this.fountain = null;
+        this.windmills = [];
+        this.character = null;
+        this.grassBlades = []; // Animated grass patches
+
+        // Textures
+        this.textures = {};
+        this.createTextures();
 
         this.init();
     }
 
     /**
-     * Initialize the scene, camera, renderer, and controls
+     * Create all procedural textures with more creativity
+     */
+    createTextures() {
+        this.textures.grass = this.createCreativeGrassTexture();
+        this.textures.grassNormal = this.createGrassNormalMap();
+        this.textures.wood = this.createWoodTexture();
+        this.textures.stone = this.createColorfulStoneTexture();
+        this.textures.sand = this.createGoldenSandTexture();
+        this.textures.path = this.createPathTexture();
+        this.textures.roof = this.createRoofTexture();
+    }
+
+    /**
+     * Creative grass texture with flowers and variety
+     */
+    createCreativeGrassTexture() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Vibrant grass base with variation
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                const noise = Math.random();
+                const r = Math.floor(60 + noise * 40);
+                const g = Math.floor(160 + noise * 50);
+                const b = Math.floor(65 + noise * 30);
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(i, j, 1, 1);
+            }
+        }
+
+        // Add small flower spots
+        for (let i = 0; i < 50; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const radius = 2 + Math.random() * 3;
+
+            // Random flower colors
+            const colors = ['#ff69b4', '#ffff00', '#ff8c00', '#ee82ee', '#00bfff'];
+            ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Add grass detail strokes
+        ctx.strokeStyle = 'rgba(50, 140, 50, 0.3)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 300; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + Math.random() * 4 - 2, y - 8);
+            ctx.stroke();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(4, 4);
+        return texture;
+    }
+
+    /**
+     * Grass normal map
+     */
+    createGrassNormalMap() {
+        const size = 256;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#8080ff';
+        ctx.fillRect(0, 0, size, size);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(4, 4);
+        return texture;
+    }
+
+    /**
+     * Creative wood texture
+     */
+    createWoodTexture() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Warm wood base
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(0, 0, size, size);
+
+        // Wood grain
+        for (let i = 0; i < size; i++) {
+            const wave = Math.sin(i * 0.05) * 20;
+            ctx.strokeStyle = `rgba(101, 67, 33, ${0.3 + Math.random() * 0.3})`;
+            ctx.lineWidth = 2 + Math.random() * 3;
+            ctx.beginPath();
+            ctx.moveTo(0, i + wave);
+            ctx.lineTo(size, i + wave);
+            ctx.stroke();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    }
+
+    /**
+     * Colorful stone texture
+     */
+    createColorfulStoneTexture() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Stone base with color variation
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                const noise = Math.random();
+                const r = Math.floor(140 + noise * 60);
+                const g = Math.floor(140 + noise * 50);
+                const b = Math.floor(160 + noise * 40);
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(i, j, 1, 1);
+            }
+        }
+
+        // Add stone cracks
+        ctx.strokeStyle = 'rgba(80, 80, 80, 0.4)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 30; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            for (let j = 0; j < 5; j++) {
+                ctx.lineTo(x + Math.random() * 30 - 15, y + Math.random() * 30 - 15);
+            }
+            ctx.stroke();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    }
+
+    /**
+     * Golden sand texture
+     */
+    createGoldenSandTexture() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Golden sand base
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                const noise = Math.random();
+                const r = Math.floor(230 + noise * 25);
+                const g = Math.floor(200 + noise * 30);
+                const b = Math.floor(140 + noise * 20);
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(i, j, 1, 1);
+            }
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(2, 2);
+        return texture;
+    }
+
+    /**
+     * Colorful path texture
+     */
+    createPathTexture() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Path base
+        ctx.fillStyle = '#d4a574';
+        ctx.fillRect(0, 0, size, size);
+
+        // Add colorful pebbles
+        const pebbleColors = ['#c49c6b', '#b88a5a', '#a67c52', '#d6b894'];
+        for (let i = 0; i < 200; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const radius = 2 + Math.random() * 5;
+            ctx.fillStyle = pebbleColors[Math.floor(Math.random() * pebbleColors.length)];
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    }
+
+    /**
+     * Colorful roof texture
+     */
+    createRoofTexture() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Red tile roof
+        ctx.fillStyle = '#d63447';
+        ctx.fillRect(0, 0, size, size);
+
+        // Tile pattern
+        for (let y = 0; y < size; y += 20) {
+            for (let x = 0; x < size; x += 30) {
+                ctx.fillStyle = `rgba(150, 40, 50, ${Math.random() * 0.3})`;
+                ctx.fillRect(x, y, 28, 18);
+            }
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    }
+
+    /**
+     * Initialize scene, camera, renderer, and all playground elements
      */
     init() {
-        // Scene setup with sunny sky color
+        // Scene
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x87CEEB); // Sky blue
-        this.scene.fog = new THREE.Fog(0x87CEEB, 50, 100); // Atmospheric perspective
+        this.scene.background = new THREE.Color(0x87CEEB);
+        this.scene.fog = new THREE.Fog(0x87CEEB, 40, 100);
 
-        // Camera setup - positioned to view the playground
+        // Camera
         this.camera = new THREE.PerspectiveCamera(
             60,
             window.innerWidth / window.innerHeight,
             0.1,
             200
         );
-        this.camera.position.set(25, 15, 25);
+        this.camera.position.set(30, 20, 30);
         this.camera.lookAt(0, 0, 0);
 
-        // Renderer setup with shadows enabled
+        // Renderer
         const canvas = document.getElementById('canvas');
         this.renderer = new THREE.WebGLRenderer({
             canvas,
@@ -51,846 +316,2049 @@ export class PlaygroundScene {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-        // OrbitControls for camera navigation
+        // Controls
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
         this.controls.minDistance = 10;
-        this.controls.maxDistance = 60;
-        this.controls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent going below ground
+        this.controls.maxDistance = 70;
+        this.controls.maxPolarAngle = Math.PI / 2 - 0.05;
 
-        // Create the playground
+        // Create playground elements
         this.createLighting();
         this.createGround();
-        this.createTrees();
-        this.createFlowers();
-        this.createSandbox();
-        this.createSwingSet();
-        this.createSlide();
-        this.createBenches();
-        this.createPath();
-        this.createLamps();
-        this.createSky();
+        this.createPlayArea();
+        this.createGarden();
+        this.createRelaxZone();
+        this.createExplorationZone();
+        this.createAtmosphere();
+        this.createAnimatedGrass();
+        this.createBoards();
+        this.createCharacter();
     }
 
     /**
-     * Create enhanced lighting system with hemisphere and directional lights
+     * Enhanced lighting system
      */
     createLighting() {
-        // Hemisphere light for sky/ground ambient lighting (more natural)
-        const hemisphereLight = new THREE.HemisphereLight(
-            0x87CEEB, // Sky color (light blue)
-            0x5fb358, // Ground color (grass green)
-            0.6
-        );
-        this.scene.add(hemisphereLight);
+        // Hemisphere light
+        const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x6fb357, 0.7);
+        this.scene.add(hemiLight);
 
-        // Warm ambient light for overall brightness
-        const ambientLight = new THREE.AmbientLight(0xfff8dc, 0.3);
+        // Ambient light
+        const ambientLight = new THREE.AmbientLight(0xfff4e6, 0.4);
         this.scene.add(ambientLight);
 
-        // Main directional light (sun) with optimized shadows
-        const sunLight = new THREE.DirectionalLight(0xfff4e6, 1.2);
-        sunLight.position.set(30, 40, 20);
+        // Sun light
+        const sunLight = new THREE.DirectionalLight(0xfff8dc, 1.3);
+        sunLight.position.set(40, 50, 30);
         sunLight.castShadow = true;
-
-        // Optimized shadow settings for performance
-        sunLight.shadow.camera.left = -35;
-        sunLight.shadow.camera.right = 35;
-        sunLight.shadow.camera.top = 35;
-        sunLight.shadow.camera.bottom = -35;
+        sunLight.shadow.camera.left = -40;
+        sunLight.shadow.camera.right = 40;
+        sunLight.shadow.camera.top = 40;
+        sunLight.shadow.camera.bottom = -40;
         sunLight.shadow.camera.near = 10;
-        sunLight.shadow.camera.far = 80;
-        sunLight.shadow.mapSize.width = 1024; // Reduced from 2048 for performance
-        sunLight.shadow.mapSize.height = 1024;
+        sunLight.shadow.camera.far = 100;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
         sunLight.shadow.bias = -0.0005;
-        sunLight.shadow.radius = 2; // Soft shadows
         this.scene.add(sunLight);
-
-        // Subtle fill light from opposite side (no shadows)
-        const fillLight = new THREE.DirectionalLight(0x9db4ff, 0.3);
-        fillLight.position.set(-20, 10, -10);
-        this.scene.add(fillLight);
-
-        // Store for later use
-        this.sunLight = sunLight;
     }
 
     /**
-     * Create the ground plane with animated grass shader
+     * Create vibrant ground
      */
     createGround() {
         const groundGeometry = new THREE.CircleGeometry(50, 64);
-
-        // Custom grass shader with animated wind
-        const groundMaterial = new THREE.ShaderMaterial({
-            uniforms: {
-                uTime: { value: 0 },
-                uBaseColor: { value: new THREE.Color(0x5fb358) },
-                uDarkColor: { value: new THREE.Color(0x4a9944) },
-                uLightColor: { value: new THREE.Color(0x6bcf7f) },
-                uSunDirection: { value: new THREE.Vector3(30, 40, 20).normalize() }
-            },
-            vertexShader: `
-                varying vec2 vUv;
-                varying vec3 vNormal;
-                varying vec3 vPosition;
-
-                void main() {
-                    vUv = uv;
-                    vNormal = normalize(normalMatrix * normal);
-                    vPosition = position;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                uniform float uTime;
-                uniform vec3 uBaseColor;
-                uniform vec3 uDarkColor;
-                uniform vec3 uLightColor;
-                uniform vec3 uSunDirection;
-
-                varying vec2 vUv;
-                varying vec3 vNormal;
-                varying vec3 vPosition;
-
-                // Simple noise function
-                float noise(vec2 p) {
-                    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
-                }
-
-                void main() {
-                    // Distance from center for gradient
-                    float distFromCenter = length(vPosition.xy) / 50.0;
-
-                    // Animated grass variation
-                    float grassNoise = noise(vUv * 100.0 + uTime * 0.1);
-                    float windWave = sin(vPosition.x * 0.5 + uTime) * cos(vPosition.z * 0.5 + uTime * 0.8) * 0.1;
-
-                    // Mix colors based on noise and distance
-                    vec3 color = mix(uDarkColor, uLightColor, grassNoise * 0.5 + 0.5);
-                    color = mix(color, uBaseColor, 0.4);
-
-                    // Add subtle wind animation to color
-                    color += vec3(windWave * 0.05);
-
-                    // Darken edges slightly
-                    color = mix(color, uDarkColor, smoothstep(0.7, 1.0, distFromCenter) * 0.3);
-
-                    // Simple lighting
-                    float lightIntensity = dot(vNormal, normalize(uSunDirection)) * 0.5 + 0.5;
-                    color *= lightIntensity * 0.5 + 0.5;
-
-                    gl_FragColor = vec4(color, 1.0);
-                }
-            `
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.grass,
+            normalMap: this.textures.grassNormal,
+            roughness: 0.85,
+            metalness: 0.0,
         });
-
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
-        ground.userData = { name: 'ground', type: 'environment', material: groundMaterial };
         this.scene.add(ground);
-
-        // Store for animation updates
-        this.groundMaterial = groundMaterial;
-
-        // Add some grass tufts for visual interest
-        this.createGrassTufts();
     }
 
     /**
-     * Create decorative grass tufts scattered on the ground
+     * PLAY AREA - Swings, Slide, Seesaw, Balls
      */
-    createGrassTufts() {
-        const tuftGeometry = new THREE.ConeGeometry(0.1, 0.4, 3);
-        const tuftMaterial = new THREE.MeshStandardMaterial({
-            color: 0x4a9944,
-            flatShading: true
-        });
+    createPlayArea() {
+        // Swings
+        this.createSwingSet(-15, 0, 8);
 
-        for (let i = 0; i < 150; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const distance = Math.random() * 45;
-            const x = Math.cos(angle) * distance;
-            const z = Math.sin(angle) * distance;
+        // Colorful Slide
+        this.createColorfulSlide(15, 0, 8);
 
-            const tuft = new THREE.Mesh(tuftGeometry, tuftMaterial);
-            tuft.position.set(x, 0.2, z);
-            tuft.rotation.y = Math.random() * Math.PI;
-            tuft.scale.set(
-                0.8 + Math.random() * 0.4,
-                0.8 + Math.random() * 0.4,
-                0.8 + Math.random() * 0.4
-            );
-            this.scene.add(tuft);
-        }
+        // Seesaw
+        this.createSeesaw(-10, 0, -5);
+
+        // Interactive Balls
+        this.createPlayBalls();
+
+        // Spinning Merry-go-round
+        this.createMerryGoRound(18, 0, -8);
     }
 
     /**
-     * Create trees around the playground
+     * Create swing set
      */
-    createTrees() {
-        const treePositions = [
-            { x: -15, z: -15 },
-            { x: 15, z: -15 },
-            { x: -18, z: 10 },
-            { x: 18, z: 12 },
-            { x: -20, z: -5 },
-            { x: 20, z: -3 }
-        ];
-
-        treePositions.forEach((pos, index) => {
-            const tree = this.createTree(pos.x, pos.z);
-            tree.userData = {
-                name: `tree-${index}`,
-                type: 'tree',
-                interactive: true,
-                description: 'A beautiful tree providing shade to the playground.'
-            };
-            this.interactiveObjects.push(tree);
-        });
-    }
-
-    /**
-     * Create a single tree with trunk and foliage
-     */
-    createTree(x, z) {
-        const treeGroup = new THREE.Group();
-
-        // Trunk
-        const trunkGeometry = new THREE.CylinderGeometry(0.4, 0.5, 3, 8);
-        const trunkMaterial = new THREE.MeshStandardMaterial({
-            color: 0x8b4513,
-            roughness: 0.9
-        });
-        const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-        trunk.position.y = 1.5;
-        trunk.castShadow = true;
-        treeGroup.add(trunk);
-
-        // Foliage (3 spheres stacked) with toon shading
-        const foliageGeometry = new THREE.SphereGeometry(2, 16, 16);
-        const foliageMaterial = this.createToonMaterial(0x2d8b2d);
-
-        const foliage1 = new THREE.Mesh(foliageGeometry, foliageMaterial);
-        foliage1.position.y = 4;
-        foliage1.scale.set(1, 1, 1);
-        foliage1.castShadow = true;
-        treeGroup.add(foliage1);
-
-        const foliage2 = new THREE.Mesh(foliageGeometry, foliageMaterial);
-        foliage2.position.y = 5.5;
-        foliage2.scale.set(0.8, 0.8, 0.8);
-        foliage2.castShadow = true;
-        treeGroup.add(foliage2);
-
-        const foliage3 = new THREE.Mesh(foliageGeometry, foliageMaterial);
-        foliage3.position.y = 6.5;
-        foliage3.scale.set(0.5, 0.5, 0.5);
-        foliage3.castShadow = true;
-        treeGroup.add(foliage3);
-
-        treeGroup.position.set(x, 0, z);
-        this.scene.add(treeGroup);
-
-        return treeGroup;
-    }
-
-    /**
-     * Create colorful flowers scattered around the playground
-     */
-    createFlowers() {
-        const flowerColors = [0xff69b4, 0xffff00, 0xff4500, 0x9370db, 0xff1493];
-        const flowerPositions = [
-            { x: -8, z: -8 }, { x: -6, z: -9 }, { x: -7, z: -7 },
-            { x: 8, z: -8 }, { x: 6, z: -9 }, { x: 7, z: -7 },
-            { x: -10, z: 8 }, { x: -8, z: 9 }, { x: -9, z: 7 },
-            { x: 10, z: 8 }, { x: 8, z: 9 }, { x: 9, z: 7 },
-            { x: 0, z: -12 }, { x: 1, z: -11 }, { x: -1, z: -13 }
-        ];
-
-        flowerPositions.forEach((pos, index) => {
-            const flower = this.createFlower(
-                pos.x,
-                pos.z,
-                flowerColors[index % flowerColors.length]
-            );
-            flower.userData = {
-                name: `flower-${index}`,
-                type: 'flower',
-                interactive: true,
-                originalScale: flower.scale.clone(),
-                description: 'A cheerful flower brightening up the garden.'
-            };
-            this.interactiveObjects.push(flower);
-        });
-    }
-
-    /**
-     * Create a single flower with stem and petals
-     */
-    createFlower(x, z, color) {
-        const flowerGroup = new THREE.Group();
-
-        // Stem
-        const stemGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.6, 6);
-        const stemMaterial = new THREE.MeshStandardMaterial({ color: 0x228b22 });
-        const stem = new THREE.Mesh(stemGeometry, stemMaterial);
-        stem.position.y = 0.3;
-        flowerGroup.add(stem);
-
-        // Petals (5 small spheres arranged in a circle) with toon shading
-        const petalGeometry = new THREE.SphereGeometry(0.15, 8, 8);
-        const petalMaterial = this.createToonMaterial(color);
-
-        for (let i = 0; i < 5; i++) {
-            const petal = new THREE.Mesh(petalGeometry, petalMaterial);
-            const angle = (i / 5) * Math.PI * 2;
-            petal.position.set(
-                Math.cos(angle) * 0.15,
-                0.6,
-                Math.sin(angle) * 0.15
-            );
-            flowerGroup.add(petal);
-        }
-
-        // Center
-        const centerGeometry = new THREE.SphereGeometry(0.1, 8, 8);
-        const centerMaterial = new THREE.MeshStandardMaterial({ color: 0xffd700 });
-        const center = new THREE.Mesh(centerGeometry, centerMaterial);
-        center.position.y = 0.6;
-        flowerGroup.add(center);
-
-        flowerGroup.position.set(x, 0, z);
-        this.scene.add(flowerGroup);
-
-        return flowerGroup;
-    }
-
-    /**
-     * Create the sandbox area
-     */
-    createSandbox() {
-        const sandboxGroup = new THREE.Group();
-
-        // Sandbox base
-        const boxGeometry = new THREE.BoxGeometry(4, 0.3, 4);
-        const boxMaterial = new THREE.MeshStandardMaterial({
-            color: 0xf4a460, // Sandy brown
-            roughness: 0.9
-        });
-        const box = new THREE.Mesh(boxGeometry, boxMaterial);
-        box.position.y = 0.15;
-        box.castShadow = true;
-        box.receiveShadow = true;
-        sandboxGroup.add(box);
-
-        // Sandbox borders
-        const borderGeometry = new THREE.BoxGeometry(4.4, 0.2, 0.3);
-        const borderMaterial = new THREE.MeshStandardMaterial({
-            color: 0x8b4513,
-            roughness: 0.8
-        });
-
-        const border1 = new THREE.Mesh(borderGeometry, borderMaterial);
-        border1.position.set(0, 0.25, 2.05);
-        border1.castShadow = true;
-        sandboxGroup.add(border1);
-
-        const border2 = new THREE.Mesh(borderGeometry, borderMaterial);
-        border2.position.set(0, 0.25, -2.05);
-        border2.castShadow = true;
-        sandboxGroup.add(border2);
-
-        const border3 = new THREE.Mesh(borderGeometry, borderMaterial);
-        border3.position.set(2.05, 0.25, 0);
-        border3.rotation.y = Math.PI / 2;
-        border3.castShadow = true;
-        sandboxGroup.add(border3);
-
-        const border4 = new THREE.Mesh(borderGeometry, borderMaterial);
-        border4.position.set(-2.05, 0.25, 0);
-        border4.rotation.y = Math.PI / 2;
-        border4.castShadow = true;
-        sandboxGroup.add(border4);
-
-        sandboxGroup.position.set(-8, 0, 0);
-        sandboxGroup.userData = {
-            name: 'sandbox',
-            type: 'sandbox',
-            interactive: true,
-            description: 'A cozy sandbox where imagination comes to life. Perfect for building castles and creating sandy adventures!'
-        };
-        this.scene.add(sandboxGroup);
-        this.interactiveObjects.push(sandboxGroup);
-    }
-
-    /**
-     * Create the swing set
-     */
-    createSwingSet() {
+    createSwingSet(x, y, z) {
         const swingGroup = new THREE.Group();
 
-        // Frame posts
-        const postGeometry = new THREE.CylinderGeometry(0.15, 0.15, 4, 8);
-        const postMaterial = new THREE.MeshStandardMaterial({
-            color: 0xc0c0c0,
-            metalness: 0.6,
-            roughness: 0.4
+        // Frame
+        const frameMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff6b6b,
+            roughness: 0.6,
+            metalness: 0.3
         });
 
-        const post1 = new THREE.Mesh(postGeometry, postMaterial);
+        // Posts
+        const postGeometry = new THREE.CylinderGeometry(0.15, 0.15, 4, 8);
+        const post1 = new THREE.Mesh(postGeometry, frameMaterial);
         post1.position.set(-2, 2, 0);
         post1.castShadow = true;
         swingGroup.add(post1);
 
-        const post2 = new THREE.Mesh(postGeometry, postMaterial);
+        const post2 = new THREE.Mesh(postGeometry, frameMaterial);
         post2.position.set(2, 2, 0);
         post2.castShadow = true;
         swingGroup.add(post2);
 
         // Top bar
         const barGeometry = new THREE.CylinderGeometry(0.12, 0.12, 4.5, 8);
-        const topBar = new THREE.Mesh(barGeometry, postMaterial);
-        topBar.position.set(0, 4, 0);
-        topBar.rotation.z = Math.PI / 2;
-        topBar.castShadow = true;
-        swingGroup.add(topBar);
+        const bar = new THREE.Mesh(barGeometry, frameMaterial);
+        bar.rotation.z = Math.PI / 2;
+        bar.position.set(0, 4, 0);
+        bar.castShadow = true;
+        swingGroup.add(bar);
 
-        // Swing seat
-        const seatGeometry = new THREE.BoxGeometry(1, 0.1, 0.8);
-        const seatMaterial = new THREE.MeshStandardMaterial({
-            color: 0xff6347, // Tomato red
-            roughness: 0.6
-        });
-        const seat = new THREE.Mesh(seatGeometry, seatMaterial);
-        seat.position.set(0, 1.5, 0);
-        seat.castShadow = true;
-        swingGroup.add(seat);
+        // Swings
+        this.createSwing(swingGroup, -1, 4, 0, 0x4ecdc4);
+        this.createSwing(swingGroup, 1, 4, 0, 0xffe66d);
 
-        // Chains (simplified as thin cylinders)
-        const chainGeometry = new THREE.CylinderGeometry(0.03, 0.03, 2.5, 6);
-        const chainMaterial = new THREE.MeshStandardMaterial({
-            color: 0x808080,
-            metalness: 0.8,
-            roughness: 0.3
-        });
+        swingGroup.position.set(x, y, z);
+        this.scene.add(swingGroup);
+    }
+
+    /**
+     * Create individual swing
+     */
+    createSwing(parent, x, y, z, color) {
+        const swingGroup = new THREE.Group();
+
+        // Chains
+        const chainMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
+        const chainGeometry = new THREE.CylinderGeometry(0.03, 0.03, 2, 6);
 
         const chain1 = new THREE.Mesh(chainGeometry, chainMaterial);
-        chain1.position.set(-0.4, 2.75, 0.3);
+        chain1.position.set(-0.3, -1, 0);
         swingGroup.add(chain1);
 
         const chain2 = new THREE.Mesh(chainGeometry, chainMaterial);
-        chain2.position.set(0.4, 2.75, 0.3);
+        chain2.position.set(0.3, -1, 0);
         swingGroup.add(chain2);
 
-        const chain3 = new THREE.Mesh(chainGeometry, chainMaterial);
-        chain3.position.set(-0.4, 2.75, -0.3);
-        swingGroup.add(chain3);
+        // Seat
+        const seatMaterial = new THREE.MeshStandardMaterial({
+            color: color,
+            roughness: 0.5,
+            metalness: 0.2
+        });
+        const seatGeometry = new THREE.BoxGeometry(0.8, 0.1, 0.4);
+        const seat = new THREE.Mesh(seatGeometry, seatMaterial);
+        seat.position.set(0, -2, 0);
+        seat.castShadow = true;
+        swingGroup.add(seat);
 
-        const chain4 = new THREE.Mesh(chainGeometry, chainMaterial);
-        chain4.position.set(0.4, 2.75, -0.3);
-        swingGroup.add(chain4);
-
-        swingGroup.position.set(6, 0, -5);
+        swingGroup.position.set(x, y, z);
         swingGroup.userData = {
-            name: 'swing',
-            type: 'swing',
             interactive: true,
-            swingSeat: seat,
-            chains: [chain1, chain2, chain3, chain4],
-            description: 'A fun swing that takes you high into the sky! Click to see it in action.'
+            type: 'swing',
+            name: 'swing',
+            description: 'Click to make it swing!'
         };
-        this.scene.add(swingGroup);
+
+        parent.add(swingGroup);
         this.interactiveObjects.push(swingGroup);
     }
 
     /**
-     * Create the slide
+     * Create colorful slide
      */
-    createSlide() {
+    createColorfulSlide(x, y, z) {
         const slideGroup = new THREE.Group();
 
-        // Slide platform
-        const platformGeometry = new THREE.BoxGeometry(2, 0.2, 2);
+        // Platform
         const platformMaterial = new THREE.MeshStandardMaterial({
-            color: 0x4169e1, // Royal blue
-            roughness: 0.5
+            color: 0xff6b6b,
+            roughness: 0.6
         });
-        const platform = new THREE.Mesh(platformGeometry, platformMaterial);
-        platform.position.set(0, 2.5, -1);
+        const platform = new THREE.Mesh(
+            new THREE.BoxGeometry(2, 0.2, 2),
+            platformMaterial
+        );
+        platform.position.set(0, 2, -1);
         platform.castShadow = true;
         slideGroup.add(platform);
 
-        // Ladder steps
-        const stepGeometry = new THREE.BoxGeometry(1, 0.1, 0.3);
-        const stepMaterial = new THREE.MeshStandardMaterial({
-            color: 0xffd700, // Gold
-            roughness: 0.6
+        // Support posts
+        const postMaterial = new THREE.MeshStandardMaterial({ color: 0xfeca57 });
+        const postGeometry = new THREE.CylinderGeometry(0.15, 0.15, 2, 8);
+
+        [[-0.8, 1, -1.8], [0.8, 1, -1.8], [-0.8, 1, -0.2], [0.8, 1, -0.2]].forEach(([px, py, pz]) => {
+            const post = new THREE.Mesh(postGeometry, postMaterial);
+            post.position.set(px, py, pz);
+            post.castShadow = true;
+            slideGroup.add(post);
         });
 
+        // Slide surface - rainbow colored
+        const slideColors = [0xff6b6b, 0xfeca57, 0x48dbfb, 0xff9ff3, 0x54a0ff];
         for (let i = 0; i < 5; i++) {
-            const step = new THREE.Mesh(stepGeometry, stepMaterial);
-            step.position.set(0, 0.5 + i * 0.5, -2 - i * 0.1);
-            step.castShadow = true;
-            slideGroup.add(step);
+            const slideMaterial = new THREE.MeshStandardMaterial({
+                color: slideColors[i],
+                roughness: 0.3,
+                metalness: 0.4
+            });
+            const slideSegment = new THREE.Mesh(
+                new THREE.BoxGeometry(1.2, 0.1, 1),
+                slideMaterial
+            );
+            slideSegment.position.set(0, 1.8 - i * 0.4, i * 0.8);
+            slideSegment.rotation.x = -0.5;
+            slideSegment.castShadow = true;
+            slideGroup.add(slideSegment);
         }
 
-        // Slide surface with enhanced material
-        const slideGeometry = new THREE.BoxGeometry(1.5, 0.2, 4);
-        const slideMaterial = new THREE.MeshStandardMaterial({
-            color: 0xff1493, // Deep pink
-            roughness: 0.3,
-            metalness: 0.4,
-            emissive: 0xff1493,
-            emissiveIntensity: 0.0 // Will increase on hover
-        });
-        const slideBoard = new THREE.Mesh(slideGeometry, slideMaterial);
-        slideBoard.position.set(0, 1.3, 1);
-        slideBoard.rotation.x = -0.5;
-        slideBoard.castShadow = true;
-        slideGroup.add(slideBoard);
+        // Ladder
+        const ladderMaterial = new THREE.MeshStandardMaterial({ color: 0x1dd1a1 });
+        for (let i = 0; i < 5; i++) {
+            const rung = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.05, 0.05, 0.6, 8),
+                ladderMaterial
+            );
+            rung.rotation.z = Math.PI / 2;
+            rung.position.set(-0.8, 0.5 + i * 0.4, -1.8);
+            rung.castShadow = true;
+            slideGroup.add(rung);
+        }
 
-        // Side rails
-        const railGeometry = new THREE.BoxGeometry(0.1, 0.5, 4);
-        const railMaterial = new THREE.MeshStandardMaterial({
-            color: 0xff69b4,
-            roughness: 0.6
-        });
-
-        const rail1 = new THREE.Mesh(railGeometry, railMaterial);
-        rail1.position.set(0.7, 1.5, 1);
-        rail1.rotation.x = -0.5;
-        rail1.castShadow = true;
-        slideGroup.add(rail1);
-
-        const rail2 = new THREE.Mesh(railGeometry, railMaterial);
-        rail2.position.set(-0.7, 1.5, 1);
-        rail2.rotation.x = -0.5;
-        rail2.castShadow = true;
-        slideGroup.add(rail2);
-
-        slideGroup.position.set(6, 0, 5);
+        slideGroup.position.set(x, y, z);
         slideGroup.userData = {
-            name: 'slide',
-            type: 'slide',
             interactive: true,
-            slideBoard: slideBoard,
-            slideMaterial: slideMaterial,
-            description: 'A colorful slide for endless fun! Whoosh down and feel the joy of playground adventures.'
+            type: 'slide',
+            name: 'rainbow-slide',
+            description: 'Wheee! A rainbow slide!'
         };
+
         this.scene.add(slideGroup);
         this.interactiveObjects.push(slideGroup);
     }
 
     /**
-     * Create benches for sitting
+     * Create seesaw
      */
-    createBenches() {
-        const benchPositions = [
-            { x: -5, z: -10, rotation: 0 },
-            { x: 5, z: 10, rotation: Math.PI }
-        ];
+    createSeesaw(x, y, z) {
+        const seesawGroup = new THREE.Group();
 
-        benchPositions.forEach((pos, index) => {
-            const bench = this.createBench();
-            bench.position.set(pos.x, 0, pos.z);
-            bench.rotation.y = pos.rotation;
-            bench.userData = {
-                name: `bench-${index}`,
-                type: 'bench',
-                interactive: true,
-                description: 'A peaceful bench to rest and enjoy the playground scenery.'
-            };
-            this.interactiveObjects.push(bench);
+        // Base
+        const baseMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8854d0,
+            roughness: 0.6
         });
+        const base = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.3, 0.4, 0.8, 8),
+            baseMaterial
+        );
+        base.position.set(0, 0.4, 0);
+        base.castShadow = true;
+        seesawGroup.add(base);
+
+        // Board
+        const boardMaterial = new THREE.MeshStandardMaterial({
+            color: 0xfeca57,
+            roughness: 0.5
+        });
+        const board = new THREE.Mesh(
+            new THREE.BoxGeometry(4, 0.2, 0.6),
+            boardMaterial
+        );
+        board.position.set(0, 0.9, 0);
+        board.castShadow = true;
+        seesawGroup.add(board);
+
+        // Handles
+        const handleMaterial = new THREE.MeshStandardMaterial({ color: 0xff6b6b });
+        const handle1 = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8),
+            handleMaterial
+        );
+        handle1.position.set(-1.7, 1.2, 0);
+        handle1.castShadow = true;
+        seesawGroup.add(handle1);
+
+        const handle2 = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8),
+            handleMaterial
+        );
+        handle2.position.set(1.7, 1.2, 0);
+        handle2.castShadow = true;
+        seesawGroup.add(handle2);
+
+        seesawGroup.position.set(x, y, z);
+        seesawGroup.userData = {
+            interactive: true,
+            type: 'seesaw',
+            name: 'seesaw',
+            description: 'Click to rock the seesaw!'
+        };
+
+        this.scene.add(seesawGroup);
+        this.interactiveObjects.push(seesawGroup);
     }
 
     /**
-     * Create a single bench
+     * Create merry-go-round
      */
-    createBench() {
+    createMerryGoRound(x, y, z) {
+        const merryGroup = new THREE.Group();
+
+        // Base platform
+        const platformMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff6b6b,
+            roughness: 0.4,
+            metalness: 0.3
+        });
+        const platform = new THREE.Mesh(
+            new THREE.CylinderGeometry(2, 2, 0.3, 32),
+            platformMaterial
+        );
+        platform.position.set(0, 0.15, 0);
+        platform.castShadow = true;
+        merryGroup.add(platform);
+
+        // Colorful poles
+        const poleColors = [0x48dbfb, 0xfeca57, 0xff9ff3, 0x1dd1a1, 0xff6b6b];
+        for (let i = 0; i < 5; i++) {
+            const angle = (i / 5) * Math.PI * 2;
+            const poleMaterial = new THREE.MeshStandardMaterial({ color: poleColors[i] });
+            const pole = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.1, 0.1, 1.5, 8),
+                poleMaterial
+            );
+            pole.position.set(
+                Math.cos(angle) * 1.3,
+                1.05,
+                Math.sin(angle) * 1.3
+            );
+            pole.castShadow = true;
+            merryGroup.add(pole);
+        }
+
+        merryGroup.position.set(x, y, z);
+        merryGroup.userData = {
+            type: 'merry-go-round',
+            rotating: true
+        };
+
+        this.windmills.push({ mesh: merryGroup, speed: 0.3 });
+        this.scene.add(merryGroup);
+    }
+
+    /**
+     * Create interactive play balls
+     */
+    createPlayBalls() {
+        // Ball 1 - Soccer ball
+        const ball1 = this.createBall(0.5, 0xff6b6b, 8, 0.5, 5);
+        ball1.userData.name = 'Red Ball';
+
+        // Ball 2 - Beach ball
+        const ball2 = this.createBall(0.45, 0x48dbfb, -8, 0.45, -3);
+        ball2.userData.name = 'Blue Ball';
+
+        // Ball 3 - Tennis ball
+        const ball3 = this.createBall(0.4, 0xfeca57, 3, 0.4, -8);
+        ball3.userData.name = 'Yellow Ball';
+    }
+
+    /**
+     * Create a single ball
+     */
+    createBall(radius, color, posX, posY, posZ) {
+        const ballGeometry = new THREE.SphereGeometry(radius, 32, 32);
+        const ballMaterial = new THREE.MeshStandardMaterial({
+            color: color,
+            roughness: 0.5,
+            metalness: 0.2
+        });
+        const ball = new THREE.Mesh(ballGeometry, ballMaterial);
+        ball.position.set(posX, posY, posZ);
+        ball.castShadow = true;
+        ball.receiveShadow = true;
+        ball.userData = {
+            interactive: true,
+            type: 'ball',
+            description: 'Click to kick the ball!'
+        };
+
+        // Physics data
+        const ballPhysics = {
+            mesh: ball,
+            velocity: new THREE.Vector3(0, 0, 0),
+            friction: 0.9,
+            gravity: -20,
+            radius: radius
+        };
+        this.balls.push(ballPhysics);
+
+        this.scene.add(ball);
+        this.interactiveObjects.push(ball);
+
+        return ball;
+    }
+
+    /**
+     * GARDEN ZONE - Trees, Flowers, Fountain
+     */
+    createGarden() {
+        // Colorful trees
+        this.createColorfulTree(-25, 0, -15, 0x48dbfb);
+        this.createColorfulTree(-20, 0, -20, 0xff9ff3);
+        this.createColorfulTree(-30, 0, -18, 0xfeca57);
+
+        // Flower patches
+        this.createFlowerPatch(-25, 0, 10);
+        this.createFlowerPatch(25, 0, 15);
+        this.createFlowerPatch(20, 0, -15);
+
+        // Magic fountain
+        this.createFountain(0, 0, -20);
+    }
+
+    /**
+     * Create colorful tree
+     */
+    createColorfulTree(x, y, z, foliageColor) {
+        const treeGroup = new THREE.Group();
+
+        // Trunk
+        const trunkMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.wood,
+            roughness: 0.9
+        });
+        const trunk = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.4, 0.5, 4, 8),
+            trunkMaterial
+        );
+        trunk.position.set(0, 2, 0);
+        trunk.castShadow = true;
+        treeGroup.add(trunk);
+
+        // Colorful foliage
+        const foliageMaterial = new THREE.MeshStandardMaterial({
+            color: foliageColor,
+            roughness: 0.8
+        });
+
+        // Multiple foliage spheres for fuller look
+        const positions = [
+            [0, 4.5, 0, 2.5],
+            [-1, 4, 0, 1.8],
+            [1, 4, 0, 1.8],
+            [0, 4, -1, 1.8],
+            [0, 4, 1, 1.8],
+            [0, 5.5, 0, 1.5]
+        ];
+
+        positions.forEach(([px, py, pz, radius]) => {
+            const foliage = new THREE.Mesh(
+                new THREE.SphereGeometry(radius, 16, 16),
+                foliageMaterial
+            );
+            foliage.position.set(px, py, pz);
+            foliage.castShadow = true;
+            treeGroup.add(foliage);
+        });
+
+        treeGroup.position.set(x, y, z);
+        treeGroup.userData = {
+            interactive: true,
+            type: 'tree',
+            name: 'colorful-tree',
+            description: 'A magical colorful tree!'
+        };
+
+        this.scene.add(treeGroup);
+        this.interactiveObjects.push(treeGroup);
+    }
+
+    /**
+     * Create flower patch
+     */
+    createFlowerPatch(x, y, z) {
+        const flowerGroup = new THREE.Group();
+        const colors = [0xff69b4, 0xff6b6b, 0xfeca57, 0x48dbfb, 0xff9ff3, 0x1dd1a1];
+
+        for (let i = 0; i < 15; i++) {
+            const offsetX = (Math.random() - 0.5) * 4;
+            const offsetZ = (Math.random() - 0.5) * 4;
+
+            // Stem
+            const stemMaterial = new THREE.MeshStandardMaterial({ color: 0x2ecc71 });
+            const stem = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6),
+                stemMaterial
+            );
+            stem.position.set(offsetX, 0.25, offsetZ);
+            flowerGroup.add(stem);
+
+            // Flower
+            const flowerColor = colors[Math.floor(Math.random() * colors.length)];
+            const flowerMaterial = new THREE.MeshStandardMaterial({
+                color: flowerColor,
+                emissive: flowerColor,
+                emissiveIntensity: 0.2
+            });
+            const flower = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15, 8, 8),
+                flowerMaterial
+            );
+            flower.position.set(offsetX, 0.55, offsetZ);
+            flower.castShadow = true;
+            flowerGroup.add(flower);
+
+            // Store for animation
+            this.flowers.push({
+                mesh: flower,
+                baseY: 0.55,
+                offset: Math.random() * Math.PI * 2,
+                speed: 0.5 + Math.random() * 0.5
+            });
+        }
+
+        flowerGroup.position.set(x, y, z);
+        this.scene.add(flowerGroup);
+    }
+
+    /**
+     * Create magical fountain
+     */
+    createFountain(x, y, z) {
+        const fountainGroup = new THREE.Group();
+
+        // Base pool
+        const poolMaterial = new THREE.MeshStandardMaterial({
+            color: 0x48dbfb,
+            roughness: 0.2,
+            metalness: 0.8,
+            emissive: 0x48dbfb,
+            emissiveIntensity: 0.3
+        });
+        const pool = new THREE.Mesh(
+            new THREE.CylinderGeometry(2, 2, 0.5, 32),
+            poolMaterial
+        );
+        pool.position.set(0, 0.25, 0);
+        pool.castShadow = true;
+        fountainGroup.add(pool);
+
+        // Center pillar
+        const pillarMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.stone,
+            roughness: 0.7
+        });
+        const pillar = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.3, 0.4, 2, 16),
+            pillarMaterial
+        );
+        pillar.position.set(0, 1.5, 0);
+        pillar.castShadow = true;
+        fountainGroup.add(pillar);
+
+        // Water particles (simplified - no complex shaders)
+        const particleCount = 50;
+        const particleGeometry = new THREE.SphereGeometry(0.05, 6, 6);
+        const particleMaterial = new THREE.MeshStandardMaterial({
+            color: 0x48dbfb,
+            emissive: 0x48dbfb,
+            emissiveIntensity: 0.5,
+            transparent: true,
+            opacity: 0.8
+        });
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+            particle.position.set(0, 2.5, 0);
+            particle.userData = {
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.5 + Math.random() * 0.5,
+                radius: Math.random() * 0.8
+            };
+            fountainGroup.add(particle);
+        }
+
+        this.fountain = fountainGroup;
+        fountainGroup.position.set(x, y, z);
+        this.scene.add(fountainGroup);
+    }
+
+    /**
+     * RELAX ZONE - Benches, House, Gazebo
+     */
+    createRelaxZone() {
+        // Colorful benches
+        this.createBench(10, 0, 18, 0xff6b6b);     // Red bench
+        this.createBench(-10, 0, 18, 0x48dbfb);    // Blue bench
+        this.createBench(0, 0, -25, 0xfeca57);     // Yellow bench near fountain
+        this.createBench(-20, 0, 12, 0xff9ff3);    // Pink bench near house
+        this.createBench(22, 0, -22, 0x1dd1a1);    // Green bench near gazebo
+        this.createBench(8, 0, -15, 0x8854d0);     // Purple bench near sandbox
+        this.createBench(-18, 0, 0, 0xf39c12);     // Orange bench in garden
+
+        // Cozy house
+        this.createCozyHouse(-28, 0, 8);
+
+        // Gazebo
+        this.createGazebo(25, 0, -20);
+    }
+
+    /**
+     * Create colorful bench
+     */
+    createBench(x, y, z, color) {
         const benchGroup = new THREE.Group();
 
         // Seat
-        const seatGeometry = new THREE.BoxGeometry(2, 0.2, 0.8);
-        const woodMaterial = new THREE.MeshStandardMaterial({
-            color: 0xd2691e,
-            roughness: 0.8
+        const seatMaterial = new THREE.MeshStandardMaterial({
+            color: color,
+            roughness: 0.6
         });
-        const seat = new THREE.Mesh(seatGeometry, woodMaterial);
-        seat.position.y = 0.5;
+        const seat = new THREE.Mesh(
+            new THREE.BoxGeometry(2, 0.2, 0.8),
+            seatMaterial
+        );
+        seat.position.set(0, 0.5, 0);
         seat.castShadow = true;
         benchGroup.add(seat);
 
         // Backrest
-        const backrestGeometry = new THREE.BoxGeometry(2, 0.8, 0.1);
-        const backrest = new THREE.Mesh(backrestGeometry, woodMaterial);
-        backrest.position.set(0, 0.9, -0.35);
+        const backrest = new THREE.Mesh(
+            new THREE.BoxGeometry(2, 1, 0.1),
+            seatMaterial
+        );
+        backrest.position.set(0, 1, -0.35);
         backrest.castShadow = true;
         benchGroup.add(backrest);
 
         // Legs
-        const legGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.5, 8);
-        const legMaterial = new THREE.MeshStandardMaterial({
-            color: 0x696969,
-            metalness: 0.5,
-            roughness: 0.5
-        });
-
-        const positions = [
-            { x: -0.8, z: 0.3 },
-            { x: 0.8, z: 0.3 },
-            { x: -0.8, z: -0.3 },
-            { x: 0.8, z: -0.3 }
-        ];
-
-        positions.forEach(pos => {
-            const leg = new THREE.Mesh(legGeometry, legMaterial);
-            leg.position.set(pos.x, 0.25, pos.z);
+        const legMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+        [[-0.7, 0.25, 0.3], [0.7, 0.25, 0.3], [-0.7, 0.25, -0.3], [0.7, 0.25, -0.3]].forEach(([lx, ly, lz]) => {
+            const leg = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.08, 0.08, 0.5, 8),
+                legMaterial
+            );
+            leg.position.set(lx, ly, lz);
             leg.castShadow = true;
             benchGroup.add(leg);
         });
 
+        benchGroup.position.set(x, y, z);
         this.scene.add(benchGroup);
-        return benchGroup;
     }
 
     /**
-     * Create a winding path through the playground
+     * Create cozy house
      */
-    createPath() {
-        const pathMaterial = new THREE.MeshStandardMaterial({
-            color: 0xd3d3d3, // Light gray
+    createCozyHouse(x, y, z) {
+        const houseGroup = new THREE.Group();
+
+        // Walls
+        const wallMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffd93d,
+            roughness: 0.8
+        });
+        const walls = new THREE.Mesh(
+            new THREE.BoxGeometry(5, 3, 4),
+            wallMaterial
+        );
+        walls.position.set(0, 1.5, 0);
+        walls.castShadow = true;
+        walls.receiveShadow = true;
+        houseGroup.add(walls);
+
+        // Roof
+        const roofMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.roof,
+            roughness: 0.9
+        });
+        const roofGeometry = new THREE.ConeGeometry(3.5, 2, 4);
+        const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+        roof.position.set(0, 4, 0);
+        roof.rotation.y = Math.PI / 4;
+        roof.castShadow = true;
+        houseGroup.add(roof);
+
+        // Door
+        const doorMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8B4513,
+            roughness: 0.7
+        });
+        const door = new THREE.Mesh(
+            new THREE.BoxGeometry(1, 2, 0.1),
+            doorMaterial
+        );
+        door.position.set(0, 1, 2.05);
+        door.castShadow = true;
+        houseGroup.add(door);
+
+        // Windows
+        const windowMaterial = new THREE.MeshStandardMaterial({
+            color: 0x87ceeb,
+            emissive: 0xffeb3b,
+            emissiveIntensity: 0.3,
+            transparent: true,
+            opacity: 0.7
+        });
+
+        const window1 = new THREE.Mesh(
+            new THREE.BoxGeometry(0.8, 0.8, 0.1),
+            windowMaterial
+        );
+        window1.position.set(-1.2, 1.5, 2.05);
+        houseGroup.add(window1);
+
+        const window2 = new THREE.Mesh(
+            new THREE.BoxGeometry(0.8, 0.8, 0.1),
+            windowMaterial
+        );
+        window2.position.set(1.2, 1.5, 2.05);
+        houseGroup.add(window2);
+
+        // Chimney
+        const chimneyMaterial = new THREE.MeshStandardMaterial({ color: 0xa0522d });
+        const chimney = new THREE.Mesh(
+            new THREE.BoxGeometry(0.5, 1.5, 0.5),
+            chimneyMaterial
+        );
+        chimney.position.set(1.5, 4.5, 0);
+        chimney.castShadow = true;
+        houseGroup.add(chimney);
+
+        houseGroup.position.set(x, y, z);
+        houseGroup.userData = {
+            interactive: true,
+            type: 'house',
+            name: 'cozy-house',
+            description: 'A warm and cozy little house!'
+        };
+
+        this.scene.add(houseGroup);
+        this.interactiveObjects.push(houseGroup);
+    }
+
+    /**
+     * Create gazebo
+     */
+    createGazebo(x, y, z) {
+        const gazeboGroup = new THREE.Group();
+
+        // Floor
+        const floorMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.wood,
+            roughness: 0.8
+        });
+        const floor = new THREE.Mesh(
+            new THREE.CylinderGeometry(3, 3, 0.2, 8),
+            floorMaterial
+        );
+        floor.position.set(0, 0.1, 0);
+        floor.castShadow = true;
+        gazeboGroup.add(floor);
+
+        // Pillars
+        const pillarMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 0.7
+        });
+
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const pillar = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.15, 0.15, 3, 8),
+                pillarMaterial
+            );
+            pillar.position.set(
+                Math.cos(angle) * 2.5,
+                1.7,
+                Math.sin(angle) * 2.5
+            );
+            pillar.castShadow = true;
+            gazeboGroup.add(pillar);
+        }
+
+        // Roof
+        const roofMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8854d0,
+            roughness: 0.6
+        });
+        const roof = new THREE.Mesh(
+            new THREE.ConeGeometry(3.5, 2, 8),
+            roofMaterial
+        );
+        roof.position.set(0, 4, 0);
+        roof.castShadow = true;
+        gazeboGroup.add(roof);
+
+        gazeboGroup.position.set(x, y, z);
+        this.scene.add(gazeboGroup);
+    }
+
+    /**
+     * EXPLORATION ZONE - Sandbox, Rocks, Mushrooms
+     */
+    createExplorationZone() {
+        // Sandbox
+        this.createSandbox(5, 0, -18);
+
+        // Rock formations
+        this.createRockFormation(-5, 0, 25);
+        this.createRockFormation(15, 0, 25);
+
+        // Glowing mushroom circle
+        this.createMushroomCircle(-18, 0, -25);
+    }
+
+    /**
+     * Create sandbox
+     */
+    createSandbox(x, y, z) {
+        const sandboxGroup = new THREE.Group();
+
+        // Frame
+        const frameMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.wood,
             roughness: 0.9
         });
 
-        // Create path segments in a winding pattern
-        const pathSegments = [
-            { x: 0, z: -8, width: 1.5, length: 4, rotation: 0 },
-            { x: 1, z: -5, width: 1.5, length: 3, rotation: 0.3 },
-            { x: 2, z: -2, width: 1.5, length: 3, rotation: 0 },
-            { x: 2, z: 1, width: 1.5, length: 3, rotation: -0.2 },
-            { x: 1, z: 4, width: 1.5, length: 3, rotation: 0 },
-            { x: 0, z: 7, width: 1.5, length: 3, rotation: 0.2 }
+        const frameGeometry = new THREE.BoxGeometry(5, 0.3, 0.3);
+        const sides = [
+            [0, 0.15, -2.35],
+            [0, 0.15, 2.35],
+            [-2.35, 0.15, 0, Math.PI / 2],
+            [2.35, 0.15, 0, Math.PI / 2]
         ];
 
-        pathSegments.forEach(segment => {
-            const segmentGeometry = new THREE.BoxGeometry(segment.width, 0.05, segment.length);
-            const pathPiece = new THREE.Mesh(segmentGeometry, pathMaterial);
-            pathPiece.position.set(segment.x, 0.03, segment.z);
-            pathPiece.rotation.y = segment.rotation;
-            pathPiece.receiveShadow = true;
-            this.scene.add(pathPiece);
+        sides.forEach(([sx, sy, sz, rotation = 0]) => {
+            const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+            frame.position.set(sx, sy, sz);
+            frame.rotation.y = rotation;
+            frame.castShadow = true;
+            sandboxGroup.add(frame);
         });
+
+        // Sand
+        const sandMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.sand,
+            roughness: 0.95
+        });
+        const sand = new THREE.Mesh(
+            new THREE.BoxGeometry(4.7, 0.5, 4.7),
+            sandMaterial
+        );
+        sand.position.set(0, 0.05, 0);
+        sand.receiveShadow = true;
+        sandboxGroup.add(sand);
+
+        // Sand toys
+        this.createSandToys(sandboxGroup);
+
+        sandboxGroup.position.set(x, y, z);
+        this.scene.add(sandboxGroup);
     }
 
     /**
-     * Create decorative lamps
+     * Create sand toys
      */
-    createLamps() {
-        const lampPositions = [
-            { x: -12, z: -12 },
-            { x: 12, z: -12 },
-            { x: -12, z: 12 },
-            { x: 12, z: 12 }
+    createSandToys(parent) {
+        // Bucket
+        const bucketMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff6b6b,
+            roughness: 0.4,
+            metalness: 0.2
+        });
+        const bucket = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.3, 0.25, 0.4, 16),
+            bucketMaterial
+        );
+        bucket.position.set(-1, 0.5, -1);
+        bucket.castShadow = true;
+        parent.add(bucket);
+
+        // Shovel
+        const shovelMaterial = new THREE.MeshStandardMaterial({ color: 0x48dbfb });
+        const shovelHandle = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.03, 0.03, 0.8, 8),
+            shovelMaterial
+        );
+        shovelHandle.position.set(1, 0.45, 1);
+        shovelHandle.rotation.x = Math.PI / 4;
+        shovelHandle.castShadow = true;
+        parent.add(shovelHandle);
+    }
+
+    /**
+     * Create rock formation
+     */
+    createRockFormation(x, y, z) {
+        const rockGroup = new THREE.Group();
+        const rockMaterial = new THREE.MeshStandardMaterial({
+            map: this.textures.stone,
+            roughness: 0.9
+        });
+
+        // Random rocks
+        for (let i = 0; i < 5; i++) {
+            const size = 0.5 + Math.random() * 1;
+            const rock = new THREE.Mesh(
+                new THREE.DodecahedronGeometry(size, 0),
+                rockMaterial
+            );
+            rock.position.set(
+                (Math.random() - 0.5) * 3,
+                size * 0.5,
+                (Math.random() - 0.5) * 3
+            );
+            rock.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+            rock.castShadow = true;
+            rockGroup.add(rock);
+        }
+
+        rockGroup.position.set(x, y, z);
+        this.scene.add(rockGroup);
+    }
+
+    /**
+     * Create glowing mushroom circle
+     */
+    createMushroomCircle(x, y, z) {
+        const mushroomGroup = new THREE.Group();
+        const mushroomColors = [0xff6b6b, 0x48dbfb, 0xfeca57, 0xff9ff3, 0x1dd1a1];
+
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const radius = 3;
+
+            // Stem
+            const stemMaterial = new THREE.MeshStandardMaterial({
+                color: 0xfaf9f6,
+                roughness: 0.7
+            });
+            const stem = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.15, 0.12, 0.5, 8),
+                stemMaterial
+            );
+            stem.position.set(
+                Math.cos(angle) * radius,
+                0.25,
+                Math.sin(angle) * radius
+            );
+            stem.castShadow = true;
+            mushroomGroup.add(stem);
+
+            // Cap (glowing)
+            const capColor = mushroomColors[i % mushroomColors.length];
+            const capMaterial = new THREE.MeshStandardMaterial({
+                color: capColor,
+                emissive: capColor,
+                emissiveIntensity: 0.5,
+                roughness: 0.6
+            });
+            const cap = new THREE.Mesh(
+                new THREE.SphereGeometry(0.3, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+                capMaterial
+            );
+            cap.position.set(
+                Math.cos(angle) * radius,
+                0.55,
+                Math.sin(angle) * radius
+            );
+            cap.castShadow = true;
+            mushroomGroup.add(cap);
+
+            // Point light for glow effect
+            const light = new THREE.PointLight(capColor, 0.5, 2);
+            light.position.set(
+                Math.cos(angle) * radius,
+                0.8,
+                Math.sin(angle) * radius
+            );
+            mushroomGroup.add(light);
+        }
+
+        mushroomGroup.position.set(x, y, z);
+        this.scene.add(mushroomGroup);
+    }
+
+    /**
+     * ATMOSPHERE - Butterflies, Clouds, Floating Lights
+     */
+    createAtmosphere() {
+        // Butterflies
+        this.createButterflies();
+
+        // Clouds
+        this.createClouds();
+
+        // Floating magic lights
+        this.createFloatingLights();
+    }
+
+    /**
+     * Create animated grass patches
+     */
+    createAnimatedGrass() {
+        // Create multiple grass patches around the playground
+        const patchPositions = [
+            // Around play area
+            { x: 5, z: 8 }, { x: -5, z: 8 }, { x: 10, z: 3 }, { x: -8, z: 5 },
+            // Around garden
+            { x: -12, z: -5 }, { x: -8, z: -10 }, { x: -15, z: -12 },
+            // Around relax zone
+            { x: 3, z: -18 }, { x: -5, z: -20 }, { x: 8, z: -22 },
+            // Random spots
+            { x: 18, z: 15 }, { x: -20, z: 8 }, { x: 15, z: -8 },
+            { x: -18, z: -15 }, { x: 22, z: -5 }, { x: -22, z: 18 },
+            { x: 12, z: -15 }, { x: -10, z: 15 }, { x: 25, z: 10 },
+            { x: -25, z: -10 }
         ];
 
-        lampPositions.forEach((pos, index) => {
-            const lamp = this.createLamp(pos.x, pos.z);
-            lamp.userData = {
-                name: `lamp-${index}`,
-                type: 'lamp',
-                interactive: true,
-                isOn: false,
-                description: 'A magical lamp that lights up with a warm glow. Click to toggle!'
-            };
-            this.interactiveObjects.push(lamp);
+        patchPositions.forEach(pos => {
+            this.createGrassPatch(pos.x, pos.z);
         });
     }
 
     /**
-     * Create a single lamp post with light
+     * Create a single grass patch with individual blades
      */
-    createLamp(x, z) {
-        const lampGroup = new THREE.Group();
+    createGrassPatch(centerX, centerZ) {
+        const bladesPerPatch = 15; // Reduced from 30 for better performance
+        const patchRadius = 1.5; // Size of the grass patch
 
-        // Pole
-        const poleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 3, 8);
-        const poleMaterial = new THREE.MeshStandardMaterial({
-            color: 0x2f4f4f,
-            metalness: 0.7,
-            roughness: 0.3
-        });
-        const pole = new THREE.Mesh(poleGeometry, poleMaterial);
-        pole.position.y = 1.5;
-        pole.castShadow = true;
-        lampGroup.add(pole);
+        for (let i = 0; i < bladesPerPatch; i++) {
+            // Random position within patch
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * patchRadius;
+            const x = centerX + Math.cos(angle) * distance;
+            const z = centerZ + Math.sin(angle) * distance;
 
-        // Lamp head
-        const lampGeometry = new THREE.SphereGeometry(0.4, 16, 16);
-        const lampMaterial = new THREE.MeshStandardMaterial({
-            color: 0xfff8dc,
-            emissive: 0x000000,
-            emissiveIntensity: 0,
-            roughness: 0.3,
-            transparent: true,
-            opacity: 0.9
-        });
-        const lampHead = new THREE.Mesh(lampGeometry, lampMaterial);
-        lampHead.position.y = 3.2;
-        lampGroup.add(lampHead);
+            // Create grass blade
+            const bladeHeight = 0.3 + Math.random() * 0.4;
+            const bladeWidth = 0.03 + Math.random() * 0.02;
 
-        // Point light (initially off)
-        const pointLight = new THREE.PointLight(0xffa500, 0, 8);
-        pointLight.position.y = 3.2;
-        lampGroup.add(pointLight);
+            // Use a tapered geometry for realistic grass blade
+            const bladeGeometry = new THREE.ConeGeometry(bladeWidth, bladeHeight, 3, 1);
+            bladeGeometry.translate(0, bladeHeight / 2, 0); // Pivot at base
 
-        lampGroup.position.set(x, 0, z);
-        lampGroup.userData.lampHead = lampHead;
-        lampGroup.userData.lampMaterial = lampMaterial;
-        lampGroup.userData.pointLight = pointLight;
+            // Grass color with variation
+            const greenVariation = 0.5 + Math.random() * 0.3;
+            const grassColor = new THREE.Color(
+                0.2 * greenVariation,
+                0.6 * greenVariation,
+                0.2 * greenVariation
+            );
 
-        this.scene.add(lampGroup);
-        return lampGroup;
-    }
+            const bladeMaterial = new THREE.MeshStandardMaterial({
+                color: grassColor,
+                flatShading: true,
+                side: THREE.DoubleSide
+            });
 
-    /**
-     * Create a gradient sky using a sky sphere
-     */
-    createSky() {
-        const skyGeometry = new THREE.SphereGeometry(150, 32, 32);
-        const skyMaterial = new THREE.ShaderMaterial({
-            uniforms: {
-                topColor: { value: new THREE.Color(0x0077ff) },
-                bottomColor: { value: new THREE.Color(0xffffff) },
-                offset: { value: 33 },
-                exponent: { value: 0.6 }
-            },
-            vertexShader: `
-                varying vec3 vWorldPosition;
-                void main() {
-                    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-                    vWorldPosition = worldPosition.xyz;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                uniform vec3 topColor;
-                uniform vec3 bottomColor;
-                uniform float offset;
-                uniform float exponent;
-                varying vec3 vWorldPosition;
-                void main() {
-                    float h = normalize(vWorldPosition + offset).y;
-                    gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
-                }
-            `,
-            side: THREE.BackSide
-        });
-        const sky = new THREE.Mesh(skyGeometry, skyMaterial);
-        this.scene.add(sky);
-    }
+            const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+            blade.position.set(x, 0, z);
+            blade.rotation.y = Math.random() * Math.PI * 2; // Random rotation
+            blade.castShadow = false; // Disable shadows for grass (performance)
 
-    /**
-     * Get the renderer instance
-     */
-    getRenderer() {
-        return this.renderer;
-    }
+            // Store animation data
+            this.grassBlades.push({
+                mesh: blade,
+                baseRotationX: 0,
+                baseRotationZ: 0,
+                windPhase: Math.random() * Math.PI * 2,
+                windSpeed: 0.8 + Math.random() * 0.4,
+                windStrength: 0.15 + Math.random() * 0.15,
+                posX: x, // Cache position for wave calculation
+                posZ: z
+            });
 
-    /**
-     * Get the camera instance
-     */
-    getCamera() {
-        return this.camera;
-    }
-
-    /**
-     * Get the scene instance
-     */
-    getScene() {
-        return this.scene;
-    }
-
-    /**
-     * Get the controls instance
-     */
-    getControls() {
-        return this.controls;
-    }
-
-    /**
-     * Create toon/cel shaded material for objects
-     */
-    createToonMaterial(color, roughness = 0.7) {
-        // Using MeshToonMaterial for cel-shading effect
-        const material = new THREE.MeshToonMaterial({
-            color: color,
-            gradientMap: this.createGradientMap()
-        });
-        return material;
-    }
-
-    /**
-     * Create gradient map for toon shading
-     */
-    createGradientMap() {
-        // Create a simple 3-tone gradient for toon shading
-        const colors = new Uint8Array(3);
-        colors[0] = 80;   // Dark
-        colors[1] = 180;  // Mid
-        colors[2] = 255;  // Light
-
-        const gradientMap = new THREE.DataTexture(colors, colors.length, 1, THREE.RedFormat);
-        gradientMap.needsUpdate = true;
-        gradientMap.magFilter = THREE.NearestFilter;
-        gradientMap.minFilter = THREE.NearestFilter;
-
-        return gradientMap;
-    }
-
-    /**
-     * Update method called every frame
-     */
-    update() {
-        this.controls.update();
-        this.updateAnimations();
-
-        // Update shader uniforms for animations
-        const elapsedTime = this.clock.getElapsedTime();
-
-        // Update grass shader time
-        if (this.groundMaterial) {
-            this.groundMaterial.uniforms.uTime.value = elapsedTime;
+            this.scene.add(blade);
         }
     }
 
     /**
-     * Update all active animations
+     * Create butterflies
+     */
+    createButterflies() {
+        const butterflyColors = [0xff69b4, 0xfeca57, 0x48dbfb, 0xff9ff3];
+
+        for (let i = 0; i < 6; i++) {
+            const butterflyGroup = new THREE.Group();
+            const color = butterflyColors[i % butterflyColors.length];
+
+            // Body
+            const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.03, 0.03, 0.15, 8),
+                bodyMaterial
+            );
+            butterflyGroup.add(body);
+
+            // Wings
+            const wingMaterial = new THREE.MeshStandardMaterial({
+                color: color,
+                emissive: color,
+                emissiveIntensity: 0.3,
+                side: THREE.DoubleSide
+            });
+
+            const wingGeometry = new THREE.CircleGeometry(0.12, 8);
+            const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            leftWing.position.set(-0.1, 0, 0);
+            leftWing.rotation.y = Math.PI / 4;
+            butterflyGroup.add(leftWing);
+
+            const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            rightWing.position.set(0.1, 0, 0);
+            rightWing.rotation.y = -Math.PI / 4;
+            butterflyGroup.add(rightWing);
+
+            // Random position
+            butterflyGroup.position.set(
+                (Math.random() - 0.5) * 40,
+                1 + Math.random() * 3,
+                (Math.random() - 0.5) * 40
+            );
+
+            this.butterflies.push({
+                mesh: butterflyGroup,
+                leftWing: leftWing,
+                rightWing: rightWing,
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.3 + Math.random() * 0.3,
+                radius: 5 + Math.random() * 10,
+                center: butterflyGroup.position.clone()
+            });
+
+            this.scene.add(butterflyGroup);
+        }
+    }
+
+    /**
+     * Create clouds
+     */
+    createClouds() {
+        const cloudMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.8,
+            roughness: 1
+        });
+
+        for (let i = 0; i < 6; i++) {
+            const cloudGroup = new THREE.Group();
+
+            // Multiple spheres for fluffy cloud
+            for (let j = 0; j < 5; j++) {
+                const cloudPart = new THREE.Mesh(
+                    new THREE.SphereGeometry(1 + Math.random(), 8, 8),
+                    cloudMaterial
+                );
+                cloudPart.position.set(
+                    (Math.random() - 0.5) * 3,
+                    (Math.random() - 0.5) * 0.5,
+                    (Math.random() - 0.5) * 3
+                );
+                cloudGroup.add(cloudPart);
+            }
+
+            cloudGroup.position.set(
+                (Math.random() - 0.5) * 80,
+                25 + Math.random() * 10,
+                (Math.random() - 0.5) * 80
+            );
+
+            this.scene.add(cloudGroup);
+        }
+    }
+
+    /**
+     * Create floating magic lights
+     */
+    createFloatingLights() {
+        const lightColors = [0xff69b4, 0xfeca57, 0x48dbfb, 0xff9ff3, 0x1dd1a1];
+
+        for (let i = 0; i < 10; i++) {
+            const color = lightColors[Math.floor(Math.random() * lightColors.length)];
+
+            const lightMaterial = new THREE.MeshStandardMaterial({
+                color: color,
+                emissive: color,
+                emissiveIntensity: 1,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            const light = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15, 8, 8),
+                lightMaterial
+            );
+
+            light.position.set(
+                (Math.random() - 0.5) * 50,
+                2 + Math.random() * 3,
+                (Math.random() - 0.5) * 50
+            );
+
+            // Point light for glow
+            const pointLight = new THREE.PointLight(color, 0.5, 3);
+            light.add(pointLight);
+
+            this.floatingLights.push({
+                mesh: light,
+                baseY: light.position.y,
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.5 + Math.random() * 0.5
+            });
+
+            this.scene.add(light);
+        }
+    }
+
+    /**
+     * Create a walking male character
+     */
+    createCharacter() {
+        const characterGroup = new THREE.Group();
+
+        // Body proportions
+        const bodyColor = 0x4a90e2; // Blue shirt
+        const skinColor = 0xffdbac; // Skin tone
+        const pantsColor = 0x2c3e50; // Dark pants
+        const hairColor = 0x3d2817; // Brown hair
+
+        // Head
+        const headGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+        const headMaterial = new THREE.MeshStandardMaterial({
+            color: skinColor,
+            roughness: 0.8
+        });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.set(0, 1.6, 0);
+        head.castShadow = true;
+        characterGroup.add(head);
+
+        // Hair
+        const hairGeometry = new THREE.SphereGeometry(0.32, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+        const hairMaterial = new THREE.MeshStandardMaterial({
+            color: hairColor,
+            roughness: 0.9
+        });
+        const hair = new THREE.Mesh(hairGeometry, hairMaterial);
+        hair.position.set(0, 1.75, 0);
+        hair.castShadow = true;
+        characterGroup.add(hair);
+
+        // Torso
+        const torsoGeometry = new THREE.CylinderGeometry(0.25, 0.3, 0.8, 16);
+        const torsoMaterial = new THREE.MeshStandardMaterial({
+            color: bodyColor,
+            roughness: 0.7
+        });
+        const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
+        torso.position.set(0, 0.9, 0);
+        torso.castShadow = true;
+        characterGroup.add(torso);
+
+        // Arms
+        const armGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.7, 8);
+        const armMaterial = new THREE.MeshStandardMaterial({
+            color: bodyColor,
+            roughness: 0.7
+        });
+
+        const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+        leftArm.position.set(-0.35, 0.9, 0);
+        leftArm.castShadow = true;
+        characterGroup.add(leftArm);
+
+        const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+        rightArm.position.set(0.35, 0.9, 0);
+        rightArm.castShadow = true;
+        characterGroup.add(rightArm);
+
+        // Hands
+        const handGeometry = new THREE.SphereGeometry(0.09, 8, 8);
+        const handMaterial = new THREE.MeshStandardMaterial({
+            color: skinColor,
+            roughness: 0.8
+        });
+
+        const leftHand = new THREE.Mesh(handGeometry, handMaterial);
+        leftHand.position.set(-0.35, 0.5, 0);
+        leftHand.castShadow = true;
+        characterGroup.add(leftHand);
+
+        const rightHand = new THREE.Mesh(handGeometry, handMaterial);
+        rightHand.position.set(0.35, 0.5, 0);
+        rightHand.castShadow = true;
+        characterGroup.add(rightHand);
+
+        // Legs
+        const legGeometry = new THREE.CylinderGeometry(0.1, 0.09, 0.7, 8);
+        const legMaterial = new THREE.MeshStandardMaterial({
+            color: pantsColor,
+            roughness: 0.8
+        });
+
+        const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+        leftLeg.position.set(-0.12, 0.15, 0);
+        leftLeg.castShadow = true;
+        characterGroup.add(leftLeg);
+
+        const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+        rightLeg.position.set(0.12, 0.15, 0);
+        rightLeg.castShadow = true;
+        characterGroup.add(rightLeg);
+
+        // Shoes
+        const shoeGeometry = new THREE.BoxGeometry(0.15, 0.1, 0.25);
+        const shoeMaterial = new THREE.MeshStandardMaterial({
+            color: 0x654321,
+            roughness: 0.9
+        });
+
+        const leftShoe = new THREE.Mesh(shoeGeometry, shoeMaterial);
+        leftShoe.position.set(-0.12, -0.15, 0.05);
+        leftShoe.castShadow = true;
+        characterGroup.add(leftShoe);
+
+        const rightShoe = new THREE.Mesh(shoeGeometry, shoeMaterial);
+        rightShoe.position.set(0.12, -0.15, 0.05);
+        rightShoe.castShadow = true;
+        characterGroup.add(rightShoe);
+
+        // Create control bubble above head
+        const bubbleGroup = new THREE.Group();
+
+        // Bubble sphere
+        const bubbleGeometry = new THREE.SphereGeometry(0.25, 16, 16);
+        const bubbleMaterial = new THREE.MeshStandardMaterial({
+            color: 0x4ecdc4,
+            emissive: 0x4ecdc4,
+            emissiveIntensity: 0.5,
+            transparent: true,
+            opacity: 0.8,
+            roughness: 0.2,
+            metalness: 0.1
+        });
+        const bubble = new THREE.Mesh(bubbleGeometry, bubbleMaterial);
+        bubble.castShadow = true;
+        bubbleGroup.add(bubble);
+
+        // Icon inside bubble (small sphere for focus icon)
+        const iconGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+        const iconMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.8
+        });
+        const icon = new THREE.Mesh(iconGeometry, iconMaterial);
+        bubbleGroup.add(icon);
+
+        // Position bubble above head (20cm = 0.2 units above head which is at 1.6)
+        bubbleGroup.position.set(0, 2.2, 0);
+        bubbleGroup.visible = false; // Hidden by default
+
+        // Make bubble interactive
+        bubbleGroup.userData = {
+            interactive: true,
+            type: 'bubble',
+            name: 'focus-bubble',
+            description: 'Click to enter/exit focus mode!'
+        };
+
+        characterGroup.add(bubbleGroup);
+
+        // Starting position
+        characterGroup.position.set(0, 0, 0);
+
+        // Make character interactive
+        characterGroup.userData = {
+            interactive: true,
+            type: 'character',
+            name: 'walking-man',
+            description: 'Click to show/hide control bubble!'
+        };
+
+        // Store references for animation
+        this.character = {
+            group: characterGroup,
+            leftArm: leftArm,
+            rightArm: rightArm,
+            leftLeg: leftLeg,
+            rightLeg: rightLeg,
+            leftHand: leftHand,
+            rightHand: rightHand,
+            leftShoe: leftShoe,
+            rightShoe: rightShoe,
+            bubble: bubbleGroup,
+            bubbleMesh: bubble,
+            bubbleIcon: icon,
+            pathProgress: 0,
+            walkSpeed: 0.3,
+            paused: false,
+            focusMode: false, // New: focus mode state
+            bubbleVisible: false, // Track bubble visibility
+            bubbleHoverPhase: 0, // For hover animation
+            // Walking path points (circular around playground)
+            path: [
+                { x: 0, z: 15 },
+                { x: 15, z: 10 },
+                { x: 20, z: 0 },
+                { x: 15, z: -10 },
+                { x: 0, z: -15 },
+                { x: -15, z: -10 },
+                { x: -20, z: 0 },
+                { x: -15, z: 10 }
+            ]
+        };
+
+        this.scene.add(characterGroup);
+        this.interactiveObjects.push(characterGroup);
+        this.interactiveObjects.push(bubbleGroup);
+    }
+
+    /**
+     * Update character walking animation
+     */
+    updateCharacter(time) {
+        if (!this.character) return;
+
+        const char = this.character;
+
+        // Animate bubble if visible
+        if (char.bubbleVisible && char.bubble) {
+            // Floating hover animation
+            char.bubbleHoverPhase += 0.02;
+            char.bubble.position.y = 2.2 + Math.sin(char.bubbleHoverPhase) * 0.1;
+
+            // Gentle rotation
+            char.bubble.rotation.y = time * 0.5;
+
+            // Pulsing glow
+            const pulse = 0.5 + Math.sin(time * 3) * 0.3;
+            char.bubbleMesh.material.emissiveIntensity = pulse;
+
+            // Icon rotation
+            char.bubbleIcon.rotation.y = time * 2;
+            char.bubbleIcon.rotation.x = Math.sin(time * 2) * 0.3;
+        }
+
+        // Skip movement updates if character is in focus mode or paused
+        if (char.focusMode || char.paused) {
+            // Keep character in idle pose when paused/focused
+            if (!char.focusMode) { // Only reset if not in focus mode
+                char.leftArm.rotation.x = 0;
+                char.rightArm.rotation.x = 0;
+                char.leftLeg.rotation.x = 0;
+                char.rightLeg.rotation.x = 0;
+                char.group.position.y = 0;
+            }
+            return;
+        }
+
+        const path = char.path;
+
+        // Update path progress
+        char.pathProgress += char.walkSpeed * 0.01;
+        if (char.pathProgress >= path.length) {
+            char.pathProgress = 0;
+        }
+
+        // Get current and next points
+        const currentIndex = Math.floor(char.pathProgress);
+        const nextIndex = (currentIndex + 1) % path.length;
+        const t = char.pathProgress - currentIndex;
+
+        const current = path[currentIndex];
+        const next = path[nextIndex];
+
+        // Interpolate position
+        char.group.position.x = current.x + (next.x - current.x) * t;
+        char.group.position.z = current.z + (next.z - current.z) * t;
+
+        // Calculate direction for rotation
+        const dx = next.x - current.x;
+        const dz = next.z - current.z;
+        const angle = Math.atan2(dx, dz);
+        char.group.rotation.y = angle;
+
+        // Walking animation (arm and leg swing)
+        const walkCycle = time * 5;
+
+        // Arms swing opposite to legs
+        char.leftArm.rotation.x = Math.sin(walkCycle) * 0.5;
+        char.rightArm.rotation.x = Math.sin(walkCycle + Math.PI) * 0.5;
+
+        // Legs swing
+        char.leftLeg.rotation.x = Math.sin(walkCycle + Math.PI) * 0.4;
+        char.rightLeg.rotation.x = Math.sin(walkCycle) * 0.4;
+
+        // Slight body bob
+        char.group.position.y = Math.abs(Math.sin(walkCycle * 2)) * 0.05;
+    }
+
+    /**
+     * Create billboard/whiteboard structures for project overviews
+     */
+    createBoards() {
+        // Board 1 - Billboard near play area
+        this.createBillboard(20, 0, 15, 'Project Board 1');
+
+        // Board 2 - Whiteboard near garden
+        this.createWhiteboard(-15, 0, -8, 'Project Board 2');
+    }
+
+    /**
+     * Create a billboard structure
+     */
+    createBillboard(x, y, z, title) {
+        const boardGroup = new THREE.Group();
+
+        // Support posts
+        const postMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8B4513,
+            roughness: 0.8
+        });
+
+        const leftPost = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.15, 0.15, 5, 8),
+            postMaterial
+        );
+        leftPost.position.set(-2.5, 2.5, 0);
+        leftPost.castShadow = true;
+        boardGroup.add(leftPost);
+
+        const rightPost = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.15, 0.15, 5, 8),
+            postMaterial
+        );
+        rightPost.position.set(2.5, 2.5, 0);
+        rightPost.castShadow = true;
+        boardGroup.add(rightPost);
+
+        // Create high-resolution canvas for board
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 768;
+        const ctx = canvas.getContext('2d');
+
+        // White background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Border
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 8;
+        ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+        // Title
+        ctx.fillStyle = '#2c3e50';
+        ctx.font = 'bold 60px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(title, canvas.width / 2, 100);
+
+        // Placeholder content
+        ctx.font = '40px Arial';
+        ctx.fillStyle = '#555555';
+        ctx.fillText('Project Overview', canvas.width / 2, 200);
+
+        ctx.font = '30px Arial';
+        ctx.fillStyle = '#777777';
+        ctx.fillText('Coming Soon...', canvas.width / 2, 400);
+
+        // Small decorative elements
+        ctx.fillStyle = '#3498db';
+        ctx.fillRect(100, 500, 200, 10);
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillRect(350, 500, 200, 10);
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillRect(600, 500, 200, 10);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+
+        // Board surface
+        const boardMaterial = new THREE.MeshStandardMaterial({
+            map: texture,
+            roughness: 0.3,
+            metalness: 0.1
+        });
+
+        const board = new THREE.Mesh(
+            new THREE.BoxGeometry(5, 3.5, 0.1),
+            boardMaterial
+        );
+        board.position.set(0, 3.5, 0);
+        board.castShadow = true;
+        board.receiveShadow = true;
+        boardGroup.add(board);
+
+        // Frame
+        const frameMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2c3e50,
+            roughness: 0.5,
+            metalness: 0.3
+        });
+
+        // Frame edges
+        const frameTop = new THREE.Mesh(
+            new THREE.BoxGeometry(5.2, 0.15, 0.15),
+            frameMaterial
+        );
+        frameTop.position.set(0, 5.35, 0);
+        frameTop.castShadow = true;
+        boardGroup.add(frameTop);
+
+        const frameBottom = new THREE.Mesh(
+            new THREE.BoxGeometry(5.2, 0.15, 0.15),
+            frameMaterial
+        );
+        frameBottom.position.set(0, 1.65, 0);
+        frameBottom.castShadow = true;
+        boardGroup.add(frameBottom);
+
+        const frameLeft = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 3.7, 0.15),
+            frameMaterial
+        );
+        frameLeft.position.set(-2.6, 3.5, 0);
+        frameLeft.castShadow = true;
+        boardGroup.add(frameLeft);
+
+        const frameRight = new THREE.Mesh(
+            new THREE.BoxGeometry(0.15, 3.7, 0.15),
+            frameMaterial
+        );
+        frameRight.position.set(2.6, 3.5, 0);
+        frameRight.castShadow = true;
+        boardGroup.add(frameRight);
+
+        boardGroup.position.set(x, y, z);
+        boardGroup.userData = {
+            interactive: true,
+            type: 'board',
+            name: title,
+            description: 'Click to view project details!',
+            canvas: canvas,
+            texture: texture
+        };
+
+        this.scene.add(boardGroup);
+        this.interactiveObjects.push(boardGroup);
+    }
+
+    /**
+     * Create a whiteboard structure
+     */
+    createWhiteboard(x, y, z, title) {
+        const boardGroup = new THREE.Group();
+
+        // Stand/Easel structure
+        const standMaterial = new THREE.MeshStandardMaterial({
+            color: 0x34495e,
+            roughness: 0.6,
+            metalness: 0.4
+        });
+
+        // Main support pole
+        const mainPole = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.1, 0.12, 4, 8),
+            standMaterial
+        );
+        mainPole.position.set(0, 2, 0.3);
+        mainPole.castShadow = true;
+        boardGroup.add(mainPole);
+
+        // Tripod legs
+        const legGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8);
+        for (let i = 0; i < 3; i++) {
+            const angle = (i / 3) * Math.PI * 2;
+            const leg = new THREE.Mesh(legGeometry, standMaterial);
+            leg.position.set(
+                Math.cos(angle) * 0.5,
+                0.5,
+                0.3 + Math.sin(angle) * 0.5
+            );
+            leg.rotation.z = Math.cos(angle) * 0.2;
+            leg.rotation.x = Math.sin(angle) * 0.2;
+            leg.castShadow = true;
+            boardGroup.add(leg);
+        }
+
+        // Create high-resolution canvas for whiteboard
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 768;
+        const ctx = canvas.getContext('2d');
+
+        // Whiteboard background
+        ctx.fillStyle = '#f8f9fa';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Subtle grid
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < canvas.width; i += 50) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, canvas.height);
+            ctx.stroke();
+        }
+        for (let i = 0; i < canvas.height; i += 50) {
+            ctx.beginPath();
+            ctx.moveTo(0, i);
+            ctx.lineTo(canvas.width, i);
+            ctx.stroke();
+        }
+
+        // Title
+        ctx.fillStyle = '#2c3e50';
+        ctx.font = 'bold 56px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(title, canvas.width / 2, 80);
+
+        // Underline
+        ctx.strokeStyle = '#3498db';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(200, 100);
+        ctx.lineTo(824, 100);
+        ctx.stroke();
+
+        // Placeholder sketch content
+        ctx.font = '36px Arial';
+        ctx.fillStyle = '#34495e';
+        ctx.fillText('Project Showcase', canvas.width / 2, 200);
+
+        // Draw some placeholder boxes/wireframes
+        ctx.strokeStyle = '#95a5a6';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(100, 250, 300, 200);
+        ctx.strokeRect(450, 250, 300, 200);
+
+        ctx.fillStyle = '#7f8c8d';
+        ctx.font = '28px Arial';
+        ctx.fillText('Feature 1', 250, 360);
+        ctx.fillText('Feature 2', 600, 360);
+
+        // Marker dots for emphasis
+        const dotColors = ['#e74c3c', '#f39c12', '#2ecc71', '#3498db'];
+        dotColors.forEach((color, i) => {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(150 + i * 200, 550, 20, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+
+        // Whiteboard surface
+        const boardMaterial = new THREE.MeshStandardMaterial({
+            map: texture,
+            roughness: 0.2,
+            metalness: 0.05,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.1
+        });
+
+        const board = new THREE.Mesh(
+            new THREE.BoxGeometry(4, 3, 0.08),
+            boardMaterial
+        );
+        board.position.set(0, 3.5, 0);
+        board.castShadow = true;
+        board.receiveShadow = true;
+        boardGroup.add(board);
+
+        // Aluminum frame
+        const frameMaterial = new THREE.MeshStandardMaterial({
+            color: 0xbdc3c7,
+            roughness: 0.3,
+            metalness: 0.8
+        });
+
+        const frameTop = new THREE.Mesh(
+            new THREE.BoxGeometry(4.2, 0.1, 0.1),
+            frameMaterial
+        );
+        frameTop.position.set(0, 5.05, 0);
+        frameTop.castShadow = true;
+        boardGroup.add(frameTop);
+
+        const frameBottom = new THREE.Mesh(
+            new THREE.BoxGeometry(4.2, 0.1, 0.1),
+            frameMaterial
+        );
+        frameBottom.position.set(0, 1.95, 0);
+        frameBottom.castShadow = true;
+        boardGroup.add(frameBottom);
+
+        const frameLeft = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 3.2, 0.1),
+            frameMaterial
+        );
+        frameLeft.position.set(-2.05, 3.5, 0);
+        frameLeft.castShadow = true;
+        boardGroup.add(frameLeft);
+
+        const frameRight = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 3.2, 0.1),
+            frameMaterial
+        );
+        frameRight.position.set(2.05, 3.5, 0);
+        frameRight.castShadow = true;
+        boardGroup.add(frameRight);
+
+        // Marker tray
+        const trayMaterial = new THREE.MeshStandardMaterial({
+            color: 0x95a5a6,
+            roughness: 0.5,
+            metalness: 0.3
+        });
+
+        const tray = new THREE.Mesh(
+            new THREE.BoxGeometry(3, 0.1, 0.2),
+            trayMaterial
+        );
+        tray.position.set(0, 1.85, 0.15);
+        tray.castShadow = true;
+        boardGroup.add(tray);
+
+        boardGroup.position.set(x, y, z);
+        boardGroup.rotation.y = Math.PI / 6; // Angle it slightly
+        boardGroup.userData = {
+            interactive: true,
+            type: 'board',
+            name: title,
+            description: 'Click to view project details!',
+            canvas: canvas,
+            texture: texture
+        };
+
+        this.scene.add(boardGroup);
+        this.interactiveObjects.push(boardGroup);
+    }
+
+    /**
+     * Kick ball with physics
+     */
+    kickBall(ball, direction) {
+        const ballPhysics = this.balls.find(b => b.mesh === ball);
+        if (!ballPhysics) return;
+
+        const kickStrength = 10;
+        ballPhysics.velocity.set(
+            direction.x * kickStrength,
+            4, // Upward component
+            direction.z * kickStrength
+        );
+    }
+
+    /**
+     * Update ball physics
+     */
+    updateBalls(deltaTime) {
+        this.balls.forEach(ball => {
+            // Skip if stationary
+            if (ball.velocity.lengthSq() < 0.01) {
+                ball.velocity.set(0, 0, 0);
+                if (ball.mesh.position.y < ball.radius) {
+                    ball.mesh.position.y = ball.radius;
+                }
+                return;
+            }
+
+            // Apply gravity
+            ball.velocity.y += ball.gravity * deltaTime;
+
+            // Update position
+            ball.mesh.position.x += ball.velocity.x * deltaTime;
+            ball.mesh.position.y += ball.velocity.y * deltaTime;
+            ball.mesh.position.z += ball.velocity.z * deltaTime;
+
+            // Ground collision
+            if (ball.mesh.position.y <= ball.radius) {
+                ball.mesh.position.y = ball.radius;
+                ball.velocity.y *= -0.6; // Bounce
+
+                if (Math.abs(ball.velocity.y) < 0.5) {
+                    ball.velocity.y = 0;
+                }
+            }
+
+            // Apply friction
+            if (ball.mesh.position.y <= ball.radius + 0.01) {
+                ball.velocity.x *= ball.friction;
+                ball.velocity.z *= ball.friction;
+            }
+
+            // Boundaries
+            const maxDist = 45;
+            if (Math.abs(ball.mesh.position.x) > maxDist) {
+                ball.mesh.position.x = Math.sign(ball.mesh.position.x) * maxDist;
+                ball.velocity.x *= -0.5;
+            }
+            if (Math.abs(ball.mesh.position.z) > maxDist) {
+                ball.mesh.position.z = Math.sign(ball.mesh.position.z) * maxDist;
+                ball.velocity.z *= -0.5;
+            }
+
+            // Rotation
+            const speed = Math.sqrt(ball.velocity.x ** 2 + ball.velocity.z ** 2);
+            if (speed > 0.1) {
+                const axis = new THREE.Vector3(-ball.velocity.z, 0, ball.velocity.x).normalize();
+                ball.mesh.rotateOnWorldAxis(axis, speed * deltaTime);
+            }
+        });
+    }
+
+    /**
+     * Update animations - simplified, no complex shaders
      */
     updateAnimations() {
-        const time = performance.now() * 0.001;
+        const time = this.clock.getElapsedTime();
+        const deltaTime = this.clock.getDelta();
 
-        this.animatingObjects.forEach((animData, object) => {
-            if (animData.type === 'swing') {
-                const swingAngle = Math.sin(time * 2) * 0.4;
-                const seat = object.userData.swingSeat;
-                const chains = object.userData.chains;
+        // Animate flowers (gentle bobbing)
+        this.flowers.forEach(flower => {
+            flower.mesh.position.y = flower.baseY + Math.sin(time * flower.speed + flower.offset) * 0.1;
+            flower.mesh.rotation.z = Math.sin(time * flower.speed + flower.offset) * 0.1;
+        });
 
-                if (seat) {
-                    seat.rotation.z = swingAngle;
-                    seat.position.x = Math.sin(swingAngle) * 0.5;
+        // Animate butterflies (figure-8 pattern)
+        this.butterflies.forEach(butterfly => {
+            butterfly.phase += butterfly.speed * 0.02;
+
+            butterfly.mesh.position.x = butterfly.center.x + Math.sin(butterfly.phase) * butterfly.radius;
+            butterfly.mesh.position.z = butterfly.center.z + Math.cos(butterfly.phase * 2) * butterfly.radius * 0.5;
+            butterfly.mesh.position.y = butterfly.center.y + Math.sin(time * 2 + butterfly.phase) * 1;
+
+            // Wing flapping
+            const flapAngle = Math.sin(time * 10) * 0.5;
+            butterfly.leftWing.rotation.y = Math.PI / 4 + flapAngle;
+            butterfly.rightWing.rotation.y = -Math.PI / 4 - flapAngle;
+
+            // Face direction
+            butterfly.mesh.rotation.y = butterfly.phase;
+        });
+
+        // Animate floating lights
+        this.floatingLights.forEach(light => {
+            light.mesh.position.y = light.baseY + Math.sin(time * light.speed + light.phase) * 0.8;
+            light.mesh.rotation.y = time * 0.5;
+
+            // Pulsing glow
+            const pulse = 0.8 + Math.sin(time * 2 + light.phase) * 0.2;
+            light.mesh.material.emissiveIntensity = pulse;
+        });
+
+        // Rotate merry-go-rounds
+        this.windmills.forEach(windmill => {
+            windmill.mesh.rotation.y += windmill.speed * 0.01;
+        });
+
+        // Animate fountain water
+        if (this.fountain) {
+            this.fountain.children.forEach((child, index) => {
+                if (child.userData.phase !== undefined) {
+                    const phase = time * child.userData.speed + child.userData.phase;
+                    child.position.y = 2.5 + Math.sin(phase) * 1.5;
+                    child.position.x = Math.sin(phase * 0.5) * child.userData.radius;
+                    child.position.z = Math.cos(phase * 0.5) * child.userData.radius;
+
+                    // Fade out at bottom
+                    const alpha = Math.max(0, Math.min(1, (child.position.y - 1) / 2));
+                    child.material.opacity = alpha * 0.8;
                 }
+            });
+        }
 
-                if (chains) {
-                    chains.forEach(chain => {
-                        chain.rotation.z = swingAngle;
-                    });
+        // Animate grass blades (optimized wind effect)
+        this.grassBlades.forEach(grass => {
+            // Simple wind sway animation (removed expensive noise3D)
+            grass.windPhase += 0.02 * grass.windSpeed;
+
+            // Create wave-like motion using simple sine waves
+            // Use cached position for wave propagation
+            const waveOffset = (grass.posX * 0.1 + grass.posZ * 0.1);
+
+            // Combine multiple sine waves for natural movement
+            const swayX = Math.sin(grass.windPhase + waveOffset) * grass.windStrength;
+            const swayZ = Math.cos(grass.windPhase * 1.3 + waveOffset * 0.7) * grass.windStrength * 0.7;
+
+            // Apply rotation (grass bends from the base)
+            grass.mesh.rotation.x = grass.baseRotationX + swayX;
+            grass.mesh.rotation.z = grass.baseRotationZ + swayZ;
+        });
+
+        // Update balls
+        this.updateBalls(deltaTime);
+
+        // Update walking character
+        this.updateCharacter(time);
+
+        // Handle animating objects (swings, seesaw)
+        this.animatingObjects.forEach((data, object) => {
+            if (data.type === 'swing') {
+                if (!data.startTime) data.startTime = time;
+                const elapsed = time - data.startTime;
+                object.rotation.x = Math.sin(elapsed * 3) * 0.5;
+
+                if (elapsed > 5) {
+                    object.rotation.x = 0;
+                    this.animatingObjects.delete(object);
+                }
+            } else if (data.type === 'seesaw') {
+                if (!data.startTime) data.startTime = time;
+                const elapsed = time - data.startTime;
+                object.children[1].rotation.z = Math.sin(elapsed * 2) * 0.3;
+
+                if (elapsed > 6) {
+                    object.children[1].rotation.z = 0;
+                    this.animatingObjects.delete(object);
                 }
             }
         });
+    }
+
+    /**
+     * Main update loop
+     */
+    update() {
+        // Only update controls when they're enabled (not in focus mode)
+        if (this.controls.enabled) {
+            this.controls.update();
+        }
+        this.updateAnimations();
     }
 
     /**
@@ -900,5 +2368,33 @@ export class PlaygroundScene {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    /**
+     * Render scene
+     */
+    render() {
+        this.renderer.render(this.scene, this.camera);
+    }
+
+    /**
+     * Get scene for external use
+     */
+    getScene() {
+        return this.scene;
+    }
+
+    /**
+     * Get camera for external use
+     */
+    getCamera() {
+        return this.camera;
+    }
+
+    /**
+     * Get renderer for external use
+     */
+    getRenderer() {
+        return this.renderer;
     }
 }
