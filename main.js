@@ -33,6 +33,7 @@ class PlaygroundApp {
         this.savedCameraTarget = null;
         this.cameraOffsetDistance = 8; // Distance behind character
         this.cameraOffsetHeight = 3; // Height above character
+        this.cameraAngle = Math.PI; // Camera angle around character (starts behind)
 
         // WASD movement keys
         this.keys = {
@@ -604,14 +605,16 @@ class PlaygroundApp {
             // Disable OrbitControls
             controls.enabled = false;
 
+            // Initialize camera angle behind character
+            this.cameraAngle = char.group.rotation.y + Math.PI; // Behind character
+
             // Position camera behind character IMMEDIATELY
             const camera = this.playgroundScene.getCamera();
             const charPos = char.group.position;
-            const charRotation = char.group.rotation.y;
 
-            // Calculate position BEHIND character based on their rotation
-            const offsetX = -Math.sin(charRotation) * this.cameraOffsetDistance;
-            const offsetZ = -Math.cos(charRotation) * this.cameraOffsetDistance;
+            // Calculate position using camera angle (not character rotation)
+            const offsetX = Math.sin(this.cameraAngle) * this.cameraOffsetDistance;
+            const offsetZ = Math.cos(this.cameraAngle) * this.cameraOffsetDistance;
 
             camera.position.set(
                 charPos.x + offsetX,
@@ -625,7 +628,7 @@ class PlaygroundApp {
             console.log('═══ FOCUS MODE ACTIVATED ═══');
             console.log('✓ Third-person view active');
             console.log('✓ Camera behind character at:', camera.position.x.toFixed(1), camera.position.y.toFixed(1), camera.position.z.toFixed(1));
-            console.log('✓ Controls: W/A/S/D = move, Mouse Wheel = zoom');
+            console.log('✓ Controls: W/A/S/D = move, Q/E = rotate camera, Mouse Wheel = zoom');
         } else {
             // Exiting focus mode - return to NPC mode
             char.focusMode = false;
@@ -949,7 +952,7 @@ class PlaygroundApp {
      * Handle keyboard input
      */
     onKeyDown(event) {
-        // Handle WASD for focus mode
+        // Handle WASD + Q/E for focus mode
         if (this.focusMode) {
             switch (event.key.toLowerCase()) {
                 case 'w':
@@ -963,6 +966,12 @@ class PlaygroundApp {
                     break;
                 case 'd':
                     this.keys.d = true;
+                    break;
+                case 'q':
+                    this.keys.q = true;
+                    break;
+                case 'e':
+                    this.keys.e = true;
                     break;
             }
         } else {
@@ -1001,6 +1010,12 @@ class PlaygroundApp {
                     break;
                 case 'd':
                     this.keys.d = false;
+                    break;
+                case 'q':
+                    this.keys.q = false;
+                    break;
+                case 'e':
+                    this.keys.e = false;
                     break;
             }
         }
@@ -1044,6 +1059,15 @@ class PlaygroundApp {
         const char = this.playgroundScene.character;
         const camera = this.playgroundScene.getCamera();
         const moveSpeed = 0.15;
+        const rotateSpeed = 0.03; // Radians per frame
+
+        // Rotate camera with Q/E (camera orbits around character)
+        if (this.keys.q) {
+            this.cameraAngle += rotateSpeed;
+        }
+        if (this.keys.e) {
+            this.cameraAngle -= rotateSpeed;
+        }
 
         // Get camera's forward direction (where it's looking)
         const cameraDirection = new THREE.Vector3();
@@ -1101,13 +1125,12 @@ class PlaygroundApp {
             char.rightLeg.rotation.x = 0;
         }
 
-        // Camera follows behind character
+        // Camera follows character position but maintains its own angle
         const charPos = char.group.position;
-        const charRotation = char.group.rotation.y;
 
-        // Calculate target camera position behind character
-        const offsetX = -Math.sin(charRotation) * this.cameraOffsetDistance;
-        const offsetZ = -Math.cos(charRotation) * this.cameraOffsetDistance;
+        // Calculate target camera position using camera's own angle (not character rotation)
+        const offsetX = Math.sin(this.cameraAngle) * this.cameraOffsetDistance;
+        const offsetZ = Math.cos(this.cameraAngle) * this.cameraOffsetDistance;
 
         const targetCameraPos = new THREE.Vector3(
             charPos.x + offsetX,
