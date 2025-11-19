@@ -2253,7 +2253,10 @@ export class PlaygroundScene {
      * Main update loop
      */
     update() {
-        this.controls.update();
+        // Only update controls when they're enabled (not in focus mode)
+        if (this.controls.enabled) {
+            this.controls.update();
+        }
         this.updateAnimations();
     }
 
