@@ -541,14 +541,19 @@ class PlaygroundApp {
     }
 
     /**
-     * Toggle character bubble visibility
+     * Toggle character bubble visibility AND pause/resume character
      */
     toggleCharacterBubble() {
         if (!this.playgroundScene.character) return;
 
         const char = this.playgroundScene.character;
+
+        // Toggle bubble visibility
         char.bubbleVisible = !char.bubbleVisible;
         char.bubble.visible = char.bubbleVisible;
+
+        // IMPORTANT: Stop/resume character when showing/hiding bubble
+        char.paused = char.bubbleVisible; // If bubble visible, pause character
 
         // Quick scale animation for feedback
         const startScale = 1;
@@ -571,7 +576,11 @@ class PlaygroundApp {
 
         animate();
 
-        console.log(`Bubble ${char.bubbleVisible ? 'SHOWN' : 'HIDDEN'}`);
+        if (char.bubbleVisible) {
+            console.log('Character STOPPED - Bubble shown (click bubble for focus mode)');
+        } else {
+            console.log('Character RESUMED walking - Bubble hidden');
+        }
     }
 
     /**
@@ -617,9 +626,13 @@ class PlaygroundApp {
             console.log('Looking at:', charPos.x.toFixed(2), charPos.y.toFixed(2), charPos.z.toFixed(2));
             console.log('Controls:', 'WASD=move, Q/E=rotate camera, Mouse Wheel=zoom');
         } else {
-            // Exiting focus mode
+            // Exiting focus mode - return to NPC mode
             char.focusMode = false;
-            char.paused = false; // Resume walking
+
+            // Hide bubble and resume NPC walking
+            char.bubbleVisible = false;
+            char.bubble.visible = false;
+            char.paused = false; // Resume NPC walking
 
             // Restore camera position
             if (this.savedCameraPosition && this.savedCameraTarget) {
@@ -651,7 +664,7 @@ class PlaygroundApp {
                 controls.enabled = true;
             }
 
-            console.log('FOCUS MODE DEACTIVATED - Character resumed walking');
+            console.log('FOCUS MODE DEACTIVATED - Character back to NPC mode (walking resumed, bubble hidden)');
         }
     }
 
